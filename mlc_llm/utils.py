@@ -480,6 +480,7 @@ def _detect_local_opencl():
 
 
 def detect_local_target():
+    return tvm.target.Target("llvm")
     for method in [
         _detect_local_metal,
         _detect_local_rocm,
