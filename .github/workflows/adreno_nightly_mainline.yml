@@ -1,0 +1,86 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Checkout mainline commit on local repo and run tests.
+name: MLC Adreno Mainline Test
+
+on:
+  schedule:
+    # 00:30 AM IST
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mainline-test
+  cancel-in-progress: true
+
+jobs:
+  Mainline:
+    if: github.repository == 'gpgpu/mlc-llm'
+    runs-on: blr-ubuntu-tvm01
+    steps:
+      - uses: actions/checkout@v3
+        with:
+            submodules: 'recursive'
+            fetch-depth: 0
+      - name: Checkout Mainline
+        run: |
+          if ! git remote -v | grep ^mainline ; then git remote add mainline git@github.com:mlc-ai/mlc-llm.git ; fi
+          git fetch mainline
+      - name: Rebase with Mainline
+        run: |
+          git checkout -b mainline-main mainline/main
+          git submodule update
+      - name: Compile MLC
+        shell: bash -l {0}
+        run: |
+           export CUDA_PATH=/usr/local/cuda-12.2
+           mkdir -p build && cd build
+           echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
+           echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
+           echo set\(USE_CUDA ON\) >> config.cmake
+           echo set\(USE_CUTLASS OFF\) >> config.cmake
+           echo set\(USE_CUBLAS OFF\) >> config.cmake
+           echo set\(USE_ROCM OFF\) >> config.cmake
+           echo set\(USE_VULKAN OFF\) >> config.cmake
+           echo set\(USE_METAL OFF\) >> config.cmake
+           echo set\(USE_OPENCL ON\) >> config.cmake
+           echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
+           echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           cmake .. && cmake --build . --parallel $(nproc) && cd ..
+      - name: Compile TVM
+        shell: bash -l {0}
+        run: |
+           conda env list
+           export CUDA_PATH=/usr/local/cuda-12.2
+           mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake . -f;
+           echo set\(USE_OPENCL ON\) >> config.cmake;
+           echo set\(USE_LLVM ON\) >> config.cmake;
+           echo set\(USE_CUDA ON\) >> config.cmake;
+           cmake .. && cmake --build . --parallel $(nproc); cd -
+      - name: Check Build Status
+        shell: bash -l {0}
+        run: |
+           export PYTHONPATH=./python:$PYTHONPATH
+           export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
+           export PATH=/usr/local/cuda-12.2/bin:$PATH
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+      - name: Build LLM Models
+        shell: bash -l {0}
+        run: |
+           sh ci/task/build_adreno_models.sh
