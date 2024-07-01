@@ -25,12 +25,25 @@ export MODEL_ARTIFACTS_PATH=`cat /etc/mlc-artifacts-path`
 mkdir ${MODEL_ARTIFACTS_PATH}/dist -p
 mkdir ${MODEL_ARTIFACTS_PATH}/dist/libs/ -p
 
+build_model() {
+    model=$1
+    quantization=$2
+    template=$3
+    addl_args=$4
+
+    python3 -m  mlc_llm gen_config ${MODEL_LOCAL_BASE}/${model} --quantization ${quantization} --conv-template ${template} ${addl_args} -o ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC
+    python3 -m mlc_llm convert_weight ${MODEL_LOCAL_BASE}/${model} --quantization ${quantization} -o ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/ --device cuda
+    python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:adreno-so -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-android.so
+}
+
 # LLaMa-v2-7B
-python3 -m  mlc_llm gen_config ${MODEL_LOCAL_BASE}/Llama-2-7b-chat-hf --quantization q4f16_0 --conv-template llama-2 -o ${MODEL_ARTIFACTS_PATH}/dist/Llama-2-7b-chat-hf-q4f16_0-MLC
-python3 -m mlc_llm convert_weight ${MODEL_LOCAL_BASE}/Llama-2-7b-chat-hf --quantization q4f16_0 -o ${MODEL_ARTIFACTS_PATH}/dist/Llama-2-7b-chat-hf-q4f16_0-MLC/ --device cuda
-python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/Llama-2-7b-chat-hf-q4f16_0-MLC/mlc-chat-config.json --device android -o ${MODEL_ARTIFACTS_PATH}/dist/libs/Llama-2-7b-chat-hf-q4f16_0-android.so
+build_model Llama-2-7b-chat-hf q4f16_0 llama-2 ""
 
 # Mistral-Instruct-7B
-python3 -m  mlc_llm gen_config ${MODEL_LOCAL_BASE}/Mistral-7B-Instruct-v0.2/ --quantization q4f16_0 --conv-template mistral_default --sliding-window-size 1024 --prefill-chunk-size 128 -o ${MODEL_ARTIFACTS_PATH}/dist/Mistral-7B-Instruct-v0.2-q4f16_0-MLC/
-python3 -m  mlc_llm convert_weight ${MODEL_LOCAL_BASE}/Mistral-7B-Instruct-v0.2/ --quantization q4f16_0 -o ${MODEL_ARTIFACTS_PATH}/dist/Mistral-7B-Instruct-v0.2-q4f16_0-MLC --device cuda
-python3 -m  mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/Mistral-7B-Instruct-v0.2-q4f16_0-MLC/mlc-chat-config.json --device android -o ${MODEL_ARTIFACTS_PATH}/dist/libs/Mistral-7B-Instruct-v0.2-q4f16_0-android.so
+build_model Mistral-7B-Instruct-v0.2 q4f16_0 mistral_default "--sliding-window-size 1024 --prefill-chunk-size 128"
+
+# Qwen-7B
+build_model Qwen-7B-Chat q4f16_0 chatml "--model-type qwen"
+
+# Baichuan-7B
+build_model Baichuan-7B q4f16_0 chatml "--model-type baichuan"
