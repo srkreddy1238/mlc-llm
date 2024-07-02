@@ -44,7 +44,7 @@ jobs:
       - name: Rebase with Mainline
         run: |
           git checkout -b mainline-main mainline/main
-          git submodule update
+          #git submodule update
       - name: Compile MLC
         shell: bash -l {0}
         run: |
@@ -80,7 +80,3 @@ jobs:
            export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
            export PATH=/usr/local/cuda-12.2/bin:$PATH
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-      - name: Build LLM Models
-        shell: bash -l {0}
-        run: |
-           sh ci/task/build_adreno_models.sh
