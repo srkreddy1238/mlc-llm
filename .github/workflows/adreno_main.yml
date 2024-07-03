@@ -1,0 +1,132 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# GH actions.
+
+name: Adreno MLC-LLM CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: CI-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  MLC-Build-Linux:
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: blr-ubuntu-tvm01
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+          ref: ''
+      - name: Compile MLC
+        shell: bash -l {0}
+        run: |
+           export CUDA_PATH=/usr/local/cuda-12.2
+           mkdir -p build && cd build
+           echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
+           echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
+           echo set\(USE_CUDA ON\) >> config.cmake
+           echo set\(USE_CUTLASS OFF\) >> config.cmake
+           echo set\(USE_CUBLAS OFF\) >> config.cmake
+           echo set\(USE_ROCM OFF\) >> config.cmake
+           echo set\(USE_VULKAN OFF\) >> config.cmake
+           echo set\(USE_METAL OFF\) >> config.cmake
+           echo set\(USE_OPENCL ON\) >> config.cmake
+           echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
+           echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           cmake .. && cmake --build . --parallel $(nproc) && cd ..
+      - name: Compile TVM
+        shell: bash -l {0}
+        run: |
+           conda env list
+           export CUDA_PATH=/usr/local/cuda-12.2
+           mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake . -f;
+           echo set\(USE_OPENCL ON\) >> config.cmake;
+           echo set\(USE_LLVM ON\) >> config.cmake;
+           echo set\(USE_CUDA ON\) >> config.cmake;
+           cmake .. && cmake --build . --parallel $(nproc); cd -
+      - name: Check Build Status
+        shell: bash -l {0}
+        run: |
+           export PYTHONPATH=./python:$PYTHONPATH
+           export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
+           export PATH=/usr/local/cuda-12.2/bin:$PATH
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+      - name: Build LLM Models
+        shell: bash -l {0}
+        run: |
+           sh ci/task/build_adreno_models.sh
+  MLC-Build-Windows:
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: mlc-windows
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+          ref: ''
+      - name: Compile MLC
+        shell: powershell
+        run: |
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./build"
+           cd build
+           echo $Env:PATH
+           Add-Content config.cmake "set(TVM_HOME 3rdparty/tvm)"
+           Add-Content config.cmake "set(CMAKE_BUILD_TYPE RelWithDebInfo)"
+           Add-Content config.cmake "set(USE_CUDA OFF)"
+           Add-Content config.cmake "set(USE_CUTLASS OFF)"
+           Add-Content config.cmake "set(USE_CUBLAS OFF)"
+           Add-Content config.cmake "set(USE_ROCM OFF)"
+           Add-Content config.cmake "set(USE_VULKAN OFF)"
+           Add-Content config.cmake "set(USE_METAL OFF)"
+           Add-Content config.cmake "set(USE_OPENCL ON)"
+           Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
+           Add-Content config.cmake "set(USE_FLASHINFER OFF)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
+      - name: Compile TVM
+        shell: powershell
+        run: |
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
+           cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake .
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK)"
+           Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
+      - name: Check Build Status
+        shell: powershell
+        run: |
+           $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+      - name: Build LLM Models
+        shell: powershell
+        run: |
+           ci/task/build_adreno_models_win.ps1
