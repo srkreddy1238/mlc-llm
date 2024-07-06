@@ -8,6 +8,7 @@ from tvm import IRModule
 from tvm.relax import register_pipeline  # pylint: disable=no-name-in-module
 from tvm.relax.frontend import nn
 from tvm.s_tir import dlight as dl
+from tvm.relax.backend.contrib.adrenoaccl import PartitionForAdrenoACCL
 
 from mlc_llm.interface.compiler_flags import IPCAllReduceStrategyType
 from mlc_llm.support import logging
@@ -41,6 +42,7 @@ from .lift_global_buffer_alloc import LiftTIRGlobalBufferAlloc
 from .low_batch_specialization import LowBatchGemvSpecialize
 from .pipeline_parallel_rewrite import PipelineParallelRewrite
 from .scatter_tuple_get_item import ScatterTupleGetItem
+
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +132,8 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
                     else tvm.transform.Sequential([])
                 ),
                 FuseTransposeMatmul(),
+                # Adreno_Accl BYOC offloading.
+                PartitionForAdrenoACCL(),
                 _DebugDump("debug-phase1.py", debug_dump, show_meta=False),
                 # Phase 2. Lowering to TIR, inherited TVM Relax's official "zero" pipeline
                 _LogProgress("Lowering to TVM TIR kernels"),
