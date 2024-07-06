@@ -57,17 +57,20 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake
            echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake .. && cmake --build . --parallel $(nproc) && cd ..
       - name: Compile TVM
         shell: bash -l {0}
         run: |
            conda env list
            export CUDA_PATH=/usr/local/cuda-12.2
+           export ADRENOACCL_SDK=/usr/local/workspace/AdrenoAcCL
            mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
            cp ../cmake/config.cmake . -f;
            echo set\(USE_OPENCL ON\) >> config.cmake;
            echo set\(USE_LLVM ON\) >> config.cmake;
            echo set\(USE_CUDA ON\) >> config.cmake;
+           echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake .. && cmake --build . --parallel $(nproc); cd -
       - name: Check Build Status
         shell: bash -l {0}
