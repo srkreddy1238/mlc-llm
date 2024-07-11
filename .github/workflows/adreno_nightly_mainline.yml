@@ -48,7 +48,6 @@ jobs:
       - name: Compile MLC
         shell: bash -l {0}
         run: |
-           export CUDA_PATH=/usr/local/cuda-12.2
            mkdir -p build && cd build
            echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
            echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
@@ -66,7 +65,6 @@ jobs:
         shell: bash -l {0}
         run: |
            conda env list
-           export CUDA_PATH=/usr/local/cuda-12.2
            mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
            cp ../cmake/config.cmake . -f;
            echo set\(USE_OPENCL ON\) >> config.cmake;

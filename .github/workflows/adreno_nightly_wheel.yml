@@ -1,0 +1,141 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Checkout mainline commit on local repo and run tests.
+name: Adreno Package Generation
+
+on:
+  schedule:
+    # 2:30 AM IST
+    - cron: "1 20 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mlcpkg
+  cancel-in-progress: true
+
+jobs:
+  BuildPackage:
+    if: github.repository == 'gpgpu/mlc-llm'
+    runs-on: blr-ubuntu-tvm01
+    steps:
+      - uses: actions/checkout@v3
+        with:
+            submodules: 'recursive'
+            fetch-depth: 0
+      - name: Build MLC CPU Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_adreno_lib.sh
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_cpu" \
+               conda run -n py38 ./ci/task/build_wheel.sh
+           mv wheels/*.whl ${BUILD_WHEEL_PATH}/
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_clean.sh
+      - name: Build MLC CUDA Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_adreno_lib.sh
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_cuda" \
+               conda run -n py38 ./ci/task/build_wheel.sh
+           mv wheels/*.whl ${BUILD_WHEEL_PATH}/
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_clean.sh
+      - name: Build TVM CPU Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           cd 3rdparty/tvm
+           cp /tmp/build_lib.sh ./ci/adreno/build_lib.sh
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_lib.sh
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cpu" \
+               conda run -n py38 ./ci/adreno/build_wheel.sh
+           mv wheels/*.whl ${BUILD_WHEEL_PATH}/
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_clean.sh
+           cd -
+      - name: Build TVM CUDA Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           cd 3rdparty/tvm
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_lib.sh
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cuda" \
+               conda run -n py38 ./ci/adreno/build_wheel.sh
+           mv wheels/*.whl ${BUILD_WHEEL_PATH}/
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_clean.sh
+           cd -
+

@@ -56,6 +56,7 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake
            echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake .. && cmake --build . --parallel $(nproc) && cd ..
       - name: Compile TVM
         shell: bash -l {0}
@@ -105,6 +106,8 @@ jobs:
            Add-Content config.cmake "set(USE_OPENCL ON)"
            Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK)"
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            Pop-Location
