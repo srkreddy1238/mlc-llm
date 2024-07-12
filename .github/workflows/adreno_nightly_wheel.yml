@@ -142,8 +142,6 @@ jobs:
            gh release delete nightly --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
            gh release create nightly --latest --title nightly --repo "$GITHUB_REPOSITORY" --notes "MLC Nightly builds"
            gh release upload nightly ../../nightly/*.whl --clobber --repo "$GITHUB_REPOSITORY"
-           git tag -f -a nightly -m "Update nightly commit id"
-           git push origin -f --tags
            rm -rf ../../nightly/
            mv wheels/*.whl ${BUILD_WHEEL_PATH}/
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
@@ -153,4 +151,5 @@ jobs:
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
                conda run -n py38 ./ci/adreno/build_clean.sh
            cd -
-
+           git tag -f -a nightly -m "Update nightly commit id"
+           git push origin -f --tags
