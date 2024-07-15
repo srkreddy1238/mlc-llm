@@ -87,6 +87,7 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
     cublas_gemm: bool = False,
     faster_transformer: bool = False,  # pylint: disable=unused-argument
     allreduce_strategy: IPCAllReduceStrategyType = IPCAllReduceStrategyType.NONE,
+    adrenoaccl: bool = False,
     variable_bounds: Dict[str, int] = None,
     cuda_graph_symbolic_capture_hints: Dict[str, List[str]] = None,
     additional_tirs: Dict[str, tvm.tir.PrimFunc] = None,
@@ -133,7 +134,11 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
                 ),
                 FuseTransposeMatmul(),
                 # Adreno_Accl BYOC offloading.
-                PartitionForAdrenoACCL(target=target),
+                (
+                    PartitionForAdrenoACCL(target=target)
+                    if adrenoaccl
+                    else tvm.transform.Sequential([])
+                ),
                 _DebugDump("debug-phase1.py", debug_dump, show_meta=False),
                 # Phase 2. Lowering to TIR, inherited TVM Relax's official "zero" pipeline
                 _LogProgress("Lowering to TVM TIR kernels"),

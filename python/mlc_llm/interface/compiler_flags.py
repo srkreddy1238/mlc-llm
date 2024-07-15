@@ -30,6 +30,7 @@ class OptimizationFlags:
     cudagraph: bool = False
     cutlass: bool = False
     ipc_allreduce_strategy: IPCAllReduceStrategyType = IPCAllReduceStrategyType.NONE
+    adrenoaccl: bool = False
 
     def __repr__(self) -> str:
         out = StringIO()
@@ -38,11 +39,8 @@ class OptimizationFlags:
         print(f";faster_transformer={int(self.faster_transformer)}", file=out, end="")
         print(f";cudagraph={int(self.cudagraph)}", file=out, end="")
         print(f";cutlass={int(self.cutlass)}", file=out, end="")
-        print(
-            f";ipc_allreduce_strategy={self.ipc_allreduce_strategy.name}",
-            file=out,
-            end="",
-        )
+        print(f";ipc_allreduce_strategy={self.ipc_allreduce_strategy.name}", file=out, end="")
+        print(f";adrenoaccl={int(self.adrenoaccl)}", file=out, end="")
         return out.getvalue().rstrip()
 
     @staticmethod
@@ -71,6 +69,7 @@ class OptimizationFlags:
             choices=["NONE", "ONESHOT", "TWOSHOT", "AUTO"],
             default="NONE",
         )
+        parser.add_argument("--adrenoaccl", type=boolean, default=False)
         results = parser.parse_args([f"--{i}" for i in source.split(";") if i])
         return OptimizationFlags(
             flashinfer=results.flashinfer,
@@ -79,6 +78,7 @@ class OptimizationFlags:
             cudagraph=results.cudagraph,
             cutlass=results.cutlass,
             ipc_allreduce_strategy=IPCAllReduceStrategyType[results.ipc_allreduce_strategy],
+            adrenoaccl=results.adrenoaccl,
         )
 
     def update(self, target, quantization) -> None:
@@ -130,11 +130,18 @@ class OptimizationFlags:
                 return False
             return self.cudagraph
 
+        def _adrenoaccl(target) -> bool:
+            """correct adrenoaccl flag"""
+            if "adreno" not in str(target.attrs):
+                return False
+            return self.adrenoaccl
+
         self.flashinfer = _flashinfer(target)
         self.cublas_gemm = _cublas_gemm(target, quantization)
         self.faster_transformer = _faster_transformer(target)
         self.cutlass = _cutlass(target)
         self.cudagraph = _cudagraph(target)
+        self.adrenoaccl = _adrenoaccl(target)
 
 
 @dataclasses.dataclass
