@@ -139,9 +139,9 @@ jobs:
                conda run -n py38 ./ci/adreno/build_wheel.sh
            mkdir -p ../../nightly
            cp wheels/*.whl ../../nightly/
-           gh release delete nightly --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
-           gh release create nightly --latest --title nightly --repo "$GITHUB_REPOSITORY" --notes "MLC Nightly builds"
-           gh release upload nightly ../../nightly/*.whl --clobber --repo "$GITHUB_REPOSITORY"
+           gh release delete MLC-Nightly-Linux --cleanup-tag --yes --repo "$RELEASE_REPO" || true
+           gh release create MLC-Nightly-Linux --latest --title MLC-Nightly-Linux --repo "$RELEASE_REPO" --notes "Linux MLC Nightly builds"
+           gh release upload MLC-Nightly-Linux ../../nightly/*.whl --clobber --repo "$RELEASE_REPO"
            rm -rf ../../nightly/
            mv wheels/*.whl ${BUILD_WHEEL_PATH}/
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
@@ -151,7 +151,7 @@ jobs:
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
                conda run -n py38 ./ci/adreno/build_clean.sh
            cd -
-           git tag -f -a nightly -m "Update nightly commit id"
+           git tag -f -a MLC-Nightly-Linux -m "Update nightly commit id"
            git push origin -f --tags
   BuildPackageWindows:
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
@@ -215,9 +215,9 @@ jobs:
            cd 3rdparty/tvm/python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
-           try { gh release delete nightly-win --cleanup-tag --yes --repo $Env:GITHUB_REPOSITORY } catch { }
-           gh release create nightly-win --latest --title nightly-win --repo $Env:GITHUB_REPOSITORY --notes "Windows nightly builds"
-           foreach ($i in Get-ChildItem -Path python/dist) {gh release upload nightly-win .\python\dist\$i --clobber --repo $Env:GITHUB_REPOSITORY}
-           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload nightly-win .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:GITHUB_REPOSITORY}
+           try { gh release delete MLC-Nightly-Windows --cleanup-tag --yes --repo $Env:RELEASE_REPO } catch { }
+           gh release create MLC-Nightly-Windows --latest --title MLC-Nightly-Windows --repo $Env:RELEASE_REPO --notes "Windows MLC nightly builds"
+           foreach ($i in Get-ChildItem -Path python/dist) {gh release upload MLC-Nightly-Windows .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload MLC-Nightly-Windows .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
