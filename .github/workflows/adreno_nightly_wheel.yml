@@ -95,7 +95,6 @@ jobs:
         run: |
            set -e
            cd 3rdparty/tvm
-           cp /tmp/build_lib.sh ./ci/adreno/build_lib.sh
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
