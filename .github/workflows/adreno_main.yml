@@ -35,7 +35,7 @@ concurrency:
 jobs:
   MLC-Build-Linux:
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
-    runs-on: blr-ubuntu-tvm01
+    runs-on: mlc-linux-ci
     steps:
       - uses: actions/checkout@v3
         with:
