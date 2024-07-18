@@ -1,12 +1,6 @@
 #!/bin/sh
 set -e
 
-# Environment setup
-export PYTHONPATH=./python:$PYTHONPATH
-export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
-export PATH=$CUDA_PATH/bin:$PATH
-python -c "import mlc_llm; print(mlc_llm.__path__)"
-
 export MODEL_LOCAL_BASE=$1
 if [ -d "$2" ] ; then
     export MODEL_ARTIFACTS_PATH=$2
