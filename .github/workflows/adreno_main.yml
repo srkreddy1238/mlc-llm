@@ -79,7 +79,7 @@ jobs:
       - name: Build LLM Models
         shell: bash -l {0}
         run: |
-           sh ci/task/build_adreno_models.sh
+           sh ci/task/build_adreno_models.sh $LLM_MODEL_REPO
   MLC-Build-Windows:
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows

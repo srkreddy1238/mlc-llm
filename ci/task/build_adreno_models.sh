@@ -1,29 +1,21 @@
 #!/bin/sh
-__conda_setup="$('/usr/local/workspace/anaconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
-if [ $? -eq 0 ]; then
-    eval "$__conda_setup"
-else
-    if [ -f "/usr/local/workspace/anaconda3/etc/profile.d/conda.sh" ]; then
-        . "/usr/local/workspace/anaconda3/etc/profile.d/conda.sh"
-    else
-        export PATH="/usr/local/workspace/anaconda3/bin:$PATH"
-    fi
-fi
-unset __conda_setup
-conda activate mlc-build-venv
+set -e
 
 # Environment setup
 export PYTHONPATH=./python:$PYTHONPATH
 export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
-export PATH=/usr/local/cuda-12.2/bin:$PATH
+export PATH=$CUDA_PATH/bin:$PATH
 python -c "import mlc_llm; print(mlc_llm.__path__)"
-export TVM_NDK_CC=`cat /etc/tvm-ndk-cc`
-export MODEL_LOCAL_BASE=`cat /etc/mlc-model-repo`
-export MODEL_ARTIFACTS_PATH=`cat /etc/mlc-artifacts-path`
+
+export MODEL_LOCAL_BASE=$1
+if [ -d "$2" ] ; then
+    export MODEL_ARTIFACTS_PATH=$2
+else
+    export MODEL_ARTIFACTS_PATH="./"
+fi
 
 # Artifacts folder
-mkdir ${MODEL_ARTIFACTS_PATH}/dist -p
-mkdir ${MODEL_ARTIFACTS_PATH}/dist/libs/ -p
+mkdir ${MODEL_ARTIFACTS_PATH}/dist/libs -p
 
 build_model() {
     model=$1
@@ -33,7 +25,8 @@ build_model() {
 
     python3 -m  mlc_llm gen_config ${MODEL_LOCAL_BASE}/${model} --quantization ${quantization} --conv-template ${template} ${addl_args} -o ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC
     python3 -m mlc_llm convert_weight ${MODEL_LOCAL_BASE}/${model} --quantization ${quantization} -o ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/ --device cuda
-    python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:adreno-so -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-android.so
+    python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:adreno-so -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno.so
+    python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:adreno-so --opt "adrenoaccl=1" -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno-accl.so
 }
 
 # LLaMa-v2-7B
@@ -49,7 +42,7 @@ build_model Qwen-7B-Chat q4f16_0 chatml "--model-type qwen --prefill-chunk-size 
 build_model Mistral-7B-Instruct-v0.2 q4f16_0 mistral_default "--sliding-window-size 1024 --prefill-chunk-size 256"
 
 # Gemma-2G-it
-build_model gemma-2b-it q4f16_0 gemma_instruction  "--prefill-chunk-size 256 --context-window-size 4096"
+# build_model gemma-2b-it q4f16_0 gemma_instruction  "--prefill-chunk-size 256 --context-window-size 4096"
 
 # Phi-2
 build_model phi-2 q4f16_0 phi-2 "--prefill-chunk-size 256 --context-window-size 4096"
@@ -62,3 +55,8 @@ build_model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-wi
 
 # Baichuan-7B
 build_model Baichuan-7B q4f16_0 chatml "--model-type baichuan --prefill-chunk-size 256 --context-window-size 4096"
+
+# Clear temporary builds
+if [ -d "$2" ] ; then
+    rm -rf ./dist
+fi
