@@ -51,6 +51,6 @@ build_model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-wi
 build_model Baichuan-7B q4f16_0 chatml "--model-type baichuan --prefill-chunk-size 256 --context-window-size 4096"
 
 # Clear temporary builds
-if [ -d "$2" ] ; then
+if [ ! -d "$2" ] ; then
     rm -rf ./dist
 fi

@@ -137,4 +137,6 @@ jobs:
       - name: Build LLM Models
         shell: powershell
         run: |
-           ci/task/build_adreno_models_win.ps1
+           $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY

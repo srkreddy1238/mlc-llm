@@ -1,12 +1,9 @@
 # Set the error handling to stop execution on error
 $ErrorActionPreference = "Stop"
 
-# Define the base path for the model files
-$MODEL_LOCAL_BASE = $args[0]
-$MODEL_ARTIFACTS_PATH = "./"
+$MODEL_ARTIFACTS_PATH = $args[0]
 
-# Create the artifacts folder
-New-Item -ItemType Directory -Path "${MODEL_ARTIFACTS_PATH}/dist/libs" -Force
+New-Item -ItemType Directory -Path "./dist/libs" -Force
 
 # Function to build the model
 function build-model {
@@ -17,17 +14,11 @@ function build-model {
         [string]$addl_args
     )
 
-    # Generate the model configuration
-    Invoke-Expression -Command  "python -m mlc_llm gen_config ${MODEL_LOCAL_BASE}\${model} --quantization ${quantization} --conv-template ${template} ${addl_args} -o ${MODEL_ARTIFACTS_PATH}\dist\${model}-${quantization}-MLC"
-
-    # Convert the model weights
-    #Invoke-Expression -Command "python -m mlc_llm convert_weight ${MODEL_LOCAL_BASE}/${model} --quantization ${quantization} -o ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/ --device llvm"
-
     # Compile the model for Adreno
-    Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno.dll"
+    Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 -o ./dist/libs/${model}-${quantization}-adreno.dll"
 
     # Compile the model for Adreno with acceleration
-    Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt adrenoaccl=1 -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno-accl.dll"
+    Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt adrenoaccl=1 -o ./dist/libs/${model}-${quantization}-adreno-accl.dll"
 }
 
 # Build the models
@@ -41,4 +32,5 @@ build-model Phi-3-mini-4k-instruct q4f16_0 phi-3 "--prefill-chunk-size 256 --con
 build-model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-window-size 4096"
 build-model Baichuan-7B q4f16_0 chatml "--model-type baichuan --prefill-chunk-size 256 --context-window-size 4096"
 
-Remove-Item -Path "./dist" -Recurse -Force
+
+Copy-Item -Path "./dist/libs/*" -Destination "$MODEL_ARTIFACTS_PATH/dist/libs"

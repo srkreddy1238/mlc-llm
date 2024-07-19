@@ -216,11 +216,12 @@ jobs:
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            Pop-Location
-      - name: Check Build Status
+      - name: Check Build Status and Build Models
         shell: powershell
         run: |
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
            python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_ARTIFACTS
       - name: Build Package and Publish
         shell: powershell
         run: |
@@ -237,5 +238,6 @@ jobs:
            #gh release create mlc-nightly --latest --title mlc-nightly --repo $Env:RELEASE_REPO --notes "Windows MLC nightly builds"
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-nightly .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-nightly .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-nightly-artifacts $i --clobber --repo $Env:RELEASE_REPO}
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
