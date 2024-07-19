@@ -42,7 +42,7 @@ build_model Mistral-7B-Instruct-v0.2 q4f16_0 mistral_default "--sliding-window-s
 build_model phi-2 q4f16_0 phi-2 "--prefill-chunk-size 256 --context-window-size 4096"
 
 # Phi-3-mini-4k-instruct
-build_model Phi-3-mini-4k-instruct q4f16_0 phi-3 "prefill-chunk-size 256 --context-window-size 4096"
+build_model Phi-3-mini-4k-instruct q4f16_0 phi-3 "--prefill-chunk-size 256 --context-window-size 4096"
 
 # llava-1.5-7b-hf
 build_model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-window-size 4096"

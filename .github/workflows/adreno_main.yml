@@ -122,7 +122,7 @@ jobs:
            New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
            cd 3rdparty/tvm/build/;
            cp ../cmake/config.cmake .
-           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK)"
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
            Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_X86)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
