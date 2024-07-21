@@ -40,7 +40,8 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
-          ref: ''
+          fetch-depth: 0
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
       - name: Compile MLC
         shell: bash -l {0}
         run: |
@@ -61,7 +62,6 @@ jobs:
       - name: Compile TVM
         shell: bash -l {0}
         run: |
-           conda env list
            mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
            cp ../cmake/config.cmake . -f;
            echo set\(USE_OPENCL ON\) >> config.cmake;
