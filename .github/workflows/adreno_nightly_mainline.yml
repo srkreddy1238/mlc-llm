@@ -35,8 +35,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-            submodules: 'recursive'
-            fetch-depth: 0
+          # submodules: 'recursive'
+          fetch-depth: 0
+      - name: Sync Sub modules
+        shell: bash -l {0}
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
       - name: Checkout Mainline
         run: |
           if ! git remote -v | grep ^mainline ; then git remote add mainline git@github.com:mlc-ai/mlc-llm.git ; fi

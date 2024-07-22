@@ -39,9 +39,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: 'recursive'
+          # submodules: 'recursive'
           fetch-depth: 0
-          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Sync Sub modules
+        shell: bash -l {0}
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
       - name: Compile MLC
         shell: bash -l {0}
         run: |
@@ -90,8 +94,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          submodules: 'recursive'
+          #submodules: 'recursive'
           ref: ''
+      - name: Sync Sub modules
+        shell: powershell
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
       - name: Compile MLC
         shell: powershell
         run: |
