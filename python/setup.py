@@ -70,14 +70,15 @@ def parse_requirements(filename: os.PathLike):
 
 def git_extended_name(original_name):
     """Get extended name."""
-    if os.environ.get('WHEEL_EXT_NAME'):
+    if os.environ.get("WHEEL_EXT_NAME"):
         original_name = str(original_name) + os.environ.get("WHEEL_EXT_NAME")
     return original_name
 
 
 LIB_LIST, __version__ = get_lib_path()
 __version__ = git_describe_version(__version__)
-__name__="mlc_llm"
+# pylint: disable=redefined-builtin
+__name__ = "mlc_llm"
 __name__ = git_extended_name(__name__)
 
 
