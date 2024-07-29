@@ -4,3 +4,4 @@
 : ${GPU:="cpu"}
 
 mypy --install-types --non-interactive ./python/ ./tests/python/ ./examples/python/
+rm -rf .mypy_cache
