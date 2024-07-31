@@ -14,6 +14,7 @@ source /opt/rh/gcc-toolset-11/enable # GCC-11 is the hightest GCC version compat
 mkdir -p $WORKSPACE_CWD/build/ && cd $WORKSPACE_CWD/build/
 
 echo set\(USE_OPENCL ON\) >>config.cmake
+echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
 if [[ ${GPU} == cuda* ]]; then
 	echo set\(CMAKE_CUDA_COMPILER_LAUNCHER ccache\) >>config.cmake
 	echo set\(CMAKE_CUDA_ARCHITECTURES "80;90"\) >>config.cmake
