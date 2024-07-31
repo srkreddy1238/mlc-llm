@@ -53,23 +53,28 @@ jobs:
            bash ci/bash.sh mlcaidev/ci-cpu \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
-               conda run -n ci-lint ci/task/isort.sh
+               bash --login /docker/with_the_same_user \
+               "conda run -n ci-lint ci/task/isort.sh"
            bash ci/bash.sh mlcaidev/ci-cpu \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
-               conda run -n ci-lint ci/task/black.sh
+               bash --login /docker/with_the_same_user \
+               "conda run -n ci-lint ci/task/black.sh"
            bash ci/bash.sh mlcaidev/ci-cpu \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
-               conda run -n ci-lint ci/task/mypy.sh
+               bash --login /docker/with_the_same_user \
+               "conda run -n ci-lint ci/task/mypy.sh"
            bash ci/bash.sh mlcaidev/ci-cpu \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
-               conda run -n ci-lint ci/task/pylint.sh
+               bash --login /docker/with_the_same_user \
+               "conda run -n ci-lint ci/task/pylint.sh"
            bash ci/bash.sh mlcaidev/ci-cpu \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
-               conda run -n ci-lint ci/task/clang-format.sh
+               bash --login /docker/with_the_same_user \
+               "conda run -n ci-lint ci/task/clang-format.sh"
       - name: Compile MLC
         shell: bash -l {0}
         run: |

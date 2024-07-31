@@ -9,7 +9,7 @@ DOCKER_IMAGE_NAME=("$1")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="$(pwd)"
 DOCKER_BINARY="docker"
-DOCKER_ENV="-e ENV_USER_ID=$(id -u) -e ENV_GROUP_ID=$(id -g)"
+DOCKER_ENV="-e ENV_USER_ID=$(id -u) -e ENV_GROUP_ID=$(id -g) -e ENV_USER_NAME=$(id -u -n) -e ENV_GROUP_NAME=$(id -g -n) -e ENV_BUILD_HOME=/workspace"
 DOCKER_VOLUMNS="-v ${WORKSPACE}:/workspace -v ${SCRIPT_DIR}:/docker"
 
 shift 1
