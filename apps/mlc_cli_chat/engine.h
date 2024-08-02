@@ -12,6 +12,7 @@
 #include <tvm/runtime/registry.h>
 
 #include <condition_variable>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <queue>

@@ -314,6 +314,37 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
     (*engine_config)->mode = EngineMode::kServer;
   }
 
+  const std::string file_path = model_path + "/mlc-chat-config.json";
+  std::ifstream file(file_path);
+  if (!file.is_open()) {
+    std::cerr << "Error: Unable to open " << file_path << std::endl;
+    // return 1;
+  }
+
+  std::string config_content((std::istreambuf_iterator<char>(file)),
+                             std::istreambuf_iterator<char>());
+
+  // Parse the JSON object
+  picojson::value config_object;
+  std::string err;
+  picojson::parse(config_object, config_content.begin(), config_content.end(), &err);
+  if (!err.empty()) {
+    std::cerr << "Error: Unable to parse the JSON object: " << err << std::endl;
+  }
+
+  // Accessing the parsed data
+  if (config_object.is<picojson::object>()) {
+    const picojson::object& model_config = config_object.get<picojson::object>();
+    if (model_config.find("prefill_chunk_size") != model_config.end()) {
+      double prefill_chunk_size = model_config.at("prefill_chunk_size").get<double>();
+      (*engine_config)->prefill_chunk_size = prefill_chunk_size;
+    } else {
+      std::cerr << "Error: 'prefill_chunk_size' not found in the JSON object" << std::endl;
+    }
+  } else {
+    std::cerr << "Error: Invalid JSON format" << std::endl;
+  }
+
   auto call_back = engine_state->get_request_stream_callback();
 
   // Typecasting to the TVM Packed Function
