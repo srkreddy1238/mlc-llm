@@ -304,7 +304,7 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
   this->engine_config = std::make_shared<EngineConfig>(make_object<EngineConfigNode>());
   (*engine_config)->model = model_path;
   (*engine_config)->model_lib = model_lib_path;
-  (*engine_config)->verbose = true;
+  (*engine_config)->verbose = false;
 
   if (mode == "interactive") {
     (*engine_config)->mode = EngineMode::kInteractive;

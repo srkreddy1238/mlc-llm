@@ -37,7 +37,7 @@ std::vector<Message> ChatState::get_current_history_window() {
   return std::vector<Message>(history.begin() + history_window_begin, history.end());
 }
 
-void ChatState::generate(const std::string& prompt) {
+int ChatState::generate(const std::string& prompt) {
   // setting back the finish_reason_length
   bool finish_reason_length = false;
 
@@ -74,6 +74,7 @@ void ChatState::generate(const std::string& prompt) {
   if (finish_reason_length) {
     slide_history();
   }
+  return 0;
 }
 
 void ChatState::reset() {
@@ -81,21 +82,28 @@ void ChatState::reset() {
   history_window_begin = 0;
 }
 
-void ChatState::chat() {
+int ChatState::chat(std::string prompt) {
   print_help_str();
   // Get the prompt message
-  std::string prompt;
+  if (!prompt.empty()) {
+    int ret = generate(prompt);
+    __json_wrapper->background_loops->terminate();
+    return ret;
+  }
+  std::string cin_prompt;
   while (true) {
     std::cout << ">>> ";
-    std::getline(std::cin, prompt);
-    if (prompt == "/exit") {
+    std::getline(std::cin, cin_prompt);
+    if (cin_prompt == "/exit") {
+      __json_wrapper->background_loops->terminate();
       break;
-    } else if (prompt == "/help") {
+    } else if (cin_prompt == "/help") {
       print_help_str();
-    } else if (prompt == "/stats") {
+    } else if (cin_prompt == "/stats") {
       this->__json_wrapper->engine_state->getStats();
     } else {
-      generate(prompt);
+      generate(cin_prompt);
     }
   }
+  return 0;
 }

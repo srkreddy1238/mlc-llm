@@ -15,6 +15,7 @@ struct Args {
   bool evaluate = false;
   int eval_prompt_len = 128;
   int eval_gen_len = 1024;
+  std::string prompt;
 };
 
 // Help Prompt
@@ -26,14 +27,19 @@ void printHelp() {
       << "provided name will be used to search for the model folder over possible paths. "
       << "--model-lib-path argument is optional. If unspecified, the --model argument will be used "
       << "to search for the library file over possible paths.\n\n"
-      << "Usage: mlc_chat_cli [options]\n"
+      << "Usage: mlc_cli_chat [options]\n"
       << "Options:\n"
       << "  --model             [required] the model to use\n"
-      << "  --model-lib-path    [optional] the full path to the model library file to use\n"
+      << "  --model-lib         [optional] the full path to the model library file to use\n"
       << "  --device            (default: auto)\n"
+      << "  --with-prompt       [optional] runs one session with given prompt\n"
+      << "  --help              [optional] Tool usage information\n"
+      /*
       << "  --evaluate          (flag, default: false)\n"
       << "  --eval-prompt-len   (default: 128)\n"
-      << "  --eval-gen-len      (default: 1024)\n";
+      << "  --eval-gen-len      (default: 1024)\n"
+      */
+      ;
 }
 
 // Method to parse the args
@@ -56,6 +62,11 @@ Args parseArgs(int argc, char* argv[]) {
       args.eval_prompt_len = std::stoi(arguments[++i]);
     } else if (arguments[i] == "--eval-gen-len" && i + 1 < arguments.size()) {
       args.eval_gen_len = std::stoi(arguments[++i]);
+    } else if (arguments[i] == "--with-prompt" && i + 1 < arguments.size()) {
+      args.prompt = arguments[++i];
+    } else if (arguments[i] == "--help") {
+      printHelp();
+      exit(0);
     } else {
       printHelp();
       throw std::runtime_error("Unknown or incomplete argument: " + arguments[i]);
@@ -64,7 +75,7 @@ Args parseArgs(int argc, char* argv[]) {
 
   if (args.model.empty()) {
     printHelp();
-    throw std::runtime_error("--model argument is required");
+    throw std::runtime_error("Invalid arguments");
   }
 
   return args;
@@ -104,5 +115,5 @@ int main(int argc, char* argv[]) {
 
   ChatState chat_state(model_path, model_lib_path, mode, device_name, 0);
 
-  chat_state.chat();
+  return chat_state.chat(args.prompt);
 }

@@ -22,9 +22,9 @@ class ChatState {
 
   void slide_history();
   std::vector<Message> get_current_history_window();
-  void generate(const std::string& prompt);
+  int generate(const std::string& prompt);
   void reset();
-  void chat();
+  int chat(std::string prompt = "");
 };
 
 #endif
