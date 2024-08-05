@@ -289,5 +289,9 @@ jobs:
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-nightly .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-nightly .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-nightly-artifacts $i --clobber --repo $Env:RELEASE_REPO}
+           # Copy to common Linux CI
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86.zip -Destination "$CI_WHEEL_REPO/"
+           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$CI_WHEEL_REPO/"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$CI_WHEEL_REPO/"}
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
