@@ -206,6 +206,7 @@ jobs:
            gh release create mlc-nightly --latest --title mlc-nightly --repo "$RELEASE_REPO" --notes "MLC Nightly builds"
            gh release upload mlc-nightly nightly/*.whl --clobber --repo "$RELEASE_REPO"
            gh release upload mlc-nightly nightly/*.tar.bz2 --clobber --repo "$RELEASE_REPO"
+           cp nightly/* ${BUILD_WHEEL_PATH}/ -rfa
            rm -rf nightly
            gh release delete llm-nightly-artifacts --cleanup-tag --yes --repo "$RELEASE_REPO" || true
            gh release create llm-nightly-artifacts --latest --title llm-nightly-artifacts --repo "$RELEASE_REPO" --notes "Android (Adreno) LLM Nightly artifacts"
