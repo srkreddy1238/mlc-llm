@@ -116,7 +116,7 @@ jobs:
            export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
            export PATH=$CUDA_PATH/bin:$PATH
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-           sh ci/task/build_adreno_models.sh $LLM_MODEL_REPO
+           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY
   MLC-Build-Windows:
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
