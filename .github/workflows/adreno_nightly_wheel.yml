@@ -210,7 +210,7 @@ jobs:
            rm -rf nightly
            gh release delete llm-nightly-artifacts --cleanup-tag --yes --repo "$RELEASE_REPO" || true
            gh release create llm-nightly-artifacts --latest --title llm-nightly-artifacts --repo "$RELEASE_REPO" --notes "Android (Adreno) LLM Nightly artifacts"
-           gh release upload llm-nightly-artifacts $LLM_ARTIFACTS/dist/libs/*.so --clobber --repo "$RELEASE_REPO"
+           gh release upload llm-nightly-artifacts $CI_LLM_NIGHTLY_ARTIFACTS/dist/libs/*.so --clobber --repo "$RELEASE_REPO"
 
   BuildPackageWindows:
     needs: [BuildPackageLinux]
