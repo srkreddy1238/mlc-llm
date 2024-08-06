@@ -1,0 +1,308 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Checkout mainline commit on local repo and run tests.
+name: Adreno Release Generation
+
+on:
+  schedule:
+    # 2:30 AM IST
+    - cron: "1 20 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mlcpkg
+  cancel-in-progress: true
+
+jobs:
+  BuildPackageLinux:
+    if: github.repository == 'gpgpu/mlc-llm'
+    if: github.actor == "sivb"
+    runs-on: mlc-linux-ci
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # submodules: 'recursive'
+          fetch-depth: 0
+      - name: Sync Sub modules
+        shell: bash -l {0}
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Build MLC CPU Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           RELEASE_TAG=`cat adreno_version`
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_adreno_lib.sh
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_cpu_"${RELEASE_TAG} \
+               conda run -n py38 ./ci/task/build_wheel.sh
+           mkdir -p release
+           cp wheels/*.whl release/
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_clean.sh
+      - name: Build MLC CUDA Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           RELEASE_TAG=`cat adreno_version`
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_adreno_lib.sh
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_cuda_"${RELEASE_TAG} \
+               conda run -n py38 ./ci/task/build_wheel.sh
+           mkdir -p release
+           cp wheels/*.whl release/
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/task/build_clean.sh
+      - name: Build TVM CPU Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           RELEASE_TAG=`cat adreno_version`
+           cd 3rdparty/tvm
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_lib.sh
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cpu_"${RELEASE_TAG} \
+               conda run -n py38 ./ci/adreno/build_wheel.sh
+           mkdir -p ../../release
+           cp wheels/*.whl ../../release/
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_clean.sh
+           cd -
+      - name: Build TVM CUDA Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           RELEASE_TAG=`cat adreno_version`
+           cd 3rdparty/tvm
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_lib.sh
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cuda_"${RELEASE_TAG} \
+               conda run -n py38 ./ci/adreno/build_wheel.sh
+           mkdir -p ../../release
+           cp wheels/*.whl ../../release/
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
+               -e ADRENOACCL_SDK /adrenoaccl_sdk \
+               conda run -n py38 ./ci/adreno/build_clean.sh
+           cd -
+      - name: Build MLC Cli for Arm64
+        shell: bash -l {0}
+        run: |
+           set -e
+           RELEASE_TAG=`cat adreno_version`
+           mkdir -p build-arm64 && cd build-arm64
+           echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
+           echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
+           echo set\(USE_CUDA OFF\) >> config.cmake
+           echo set\(USE_CUTLASS OFF\) >> config.cmake
+           echo set\(USE_CUBLAS OFF\) >> config.cmake
+           echo set\(USE_ROCM OFF\) >> config.cmake
+           echo set\(USE_VULKAN OFF\) >> config.cmake
+           echo set\(USE_METAL OFF\) >> config.cmake
+           echo set\(USE_OPENCL ON\) >> config.cmake
+           echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
+           echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
+           echo set\(USE_ADRENO_ACCL_GRAPH_EXECUTOR "${ADRENOACCL_SDK}"\) >> config.cmake
+           cmake -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
+                 -DANDROID_ABI=arm64-v8a \
+                 -DANDROID_PLATFORM=android-28 \
+                 -DCMAKE_SYSTEM_VERSION=1 \
+                 -DCMAKE_FIND_ROOT_PATH="${ADRENO_OPENCL}:${ADRENOACCL_SDK}" \
+                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+                 -DCMAKE_CXX_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ \
+                 -DCMAKE_C_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang \
+                 -DMACHINE_NAME="aarch64-linux-gnu" \
+                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64-${RELEASE_TAG} ..
+           cmake --build . --parallel $(nproc) --target install
+           rm -rf `find mlc_llm-utils-linux-arm64-${RELEASE_TAG} -name "*.a"`
+           cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64-${RELEASE_TAG}/lib/ -rfa
+           tar jcvfp mlc_llm-utils-linux-arm64-${RELEASE_TAG}.tar.bz2 mlc_llm-utils-linux-arm64-${RELEASE_TAG}
+           mv mlc_llm-utils-linux-arm64-${RELEASE_TAG}.tar.bz2 ../release
+           cd ..
+      - name: Build LLM Models
+        shell: bash -l {0}
+        run: |
+           RELEASE_TAG=`cat adreno_version`
+           conda remove -y --name mlc-ci --all
+           conda create -y -n mlc-ci -c conda-forge \
+               llvmdev=15 cmake>=3.24 git rust numpy \
+               decorator psutil typing_extensions scipy \
+               attrs git-lfs gcc=10.4 gxx=10.4 python=3.8
+           conda activate mlc-ci
+           conda env list
+           pip install release/mlc_llm_adreno_cuda*.whl
+           pip install release/tvm_adreno_mlc_cuda*.whl
+           export LD_LIBRARY_PATH=$CUDA_PATH/lib64/
+           export PATH=$CUDA_PATH/bin:$PATH
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           python -c "import tvm; print(tvm.__path__)"
+           mkdir -p $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
+           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
+      - name: Publish Artifacts
+        shell: bash -l {0}
+        run: |
+           RELEASE_TAG=`cat adreno_version`
+           gh release delete mlc-release-${RELEASE_TAG} --cleanup-tag --yes --repo "$RELEASE_REPO" || true
+           gh release create mlc-release-${RELEASE_TAG} --latest --title mlc-release-${RELEASE_TAG} --repo "$RELEASE_REPO" --notes "MLC Release builds"
+           gh release upload mlc-release-${RELEASE_TAG} release/*.whl --clobber --repo "$RELEASE_REPO"
+           gh release upload mlc-release-${RELEASE_TAG} release/*.tar.bz2 --clobber --repo "$RELEASE_REPO"
+           mkdir -p ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}
+           cp release/* ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}/ -rfa
+           rm -rf release
+           gh release delete llm-release-artifacts-${RELEASE_TAG} --cleanup-tag --yes --repo "$RELEASE_REPO" || true
+           gh release create llm-release-artifacts-${RELEASE_TAG} --latest --title llm-release-artifacts-${RELEASE_TAG} --repo "$RELEASE_REPO" --notes "Android (Adreno) LLM Release artifacts"
+           gh release upload llm-release-artifacts-${RELEASE_TAG} $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}/dist/libs/*.so --clobber --repo "$RELEASE_REPO"
+
+  BuildPackageWindows:
+    needs: [BuildPackageLinux]
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: mlc-windows
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # submodules: 'recursive'
+          ref: ''
+      - name: Sync Sub modules
+        shell: powershell
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Compile MLC
+        shell: powershell
+        run: |
+           $RELEASE_TAG = Get-Content -path adreno_version
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./build"
+           cd build
+           echo $Env:PATH
+           Add-Content config.cmake "set(TVM_HOME 3rdparty/tvm)"
+           Add-Content config.cmake "set(CMAKE_BUILD_TYPE RelWithDebInfo)"
+           Add-Content config.cmake "set(USE_CUDA OFF)"
+           Add-Content config.cmake "set(USE_CUTLASS OFF)"
+           Add-Content config.cmake "set(USE_CUBLAS OFF)"
+           Add-Content config.cmake "set(USE_ROCM OFF)"
+           Add-Content config.cmake "set(USE_VULKAN OFF)"
+           Add-Content config.cmake "set(USE_METAL OFF)"
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
+           Add-Content config.cmake "set(USE_FLASHINFER OFF)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_X86)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-x86-${RELEASE_TAG}" --config Release
+           Compress-Archive -Path mlc_llm-utils-win-x86-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-${RELEASE_TAG}.zip -Force
+           Pop-Location
+      - name: Compile TVM
+        shell: powershell
+        run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
+           cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake .
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_X86)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
+      - name: Check Build Status and Build Models
+        shell: powershell
+        run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
+           $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
+      - name: Build Package and Publish
+        shell: powershell
+        run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
+           Push-Location
+           $Env:WHEEL_EXT_NAME="_adreno_cpu_"${RELEASE_TAG}
+           cd python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           Push-Location
+           cd 3rdparty/tvm/python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           gh release upload mlc-release-${RELEASE_TAG} .\build\mlc_llm-utils-win-x86-${RELEASE_TAG}.zip --clobber --repo $Env:RELEASE_REPO
+           foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-${RELEASE_TAG} .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-${RELEASE_TAG} .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-${RELEASE_TAG} $i --clobber --repo $Env:RELEASE_REPO}
+           # Copy to common Linux CI
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86-${RELEASE_TAG}.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/${RELEASE_TAG}"
+           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/${RELEASE_TAG}"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/${RELEASE_TAG}"}
+        env:
+           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
