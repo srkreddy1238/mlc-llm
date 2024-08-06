@@ -36,7 +36,7 @@ build_model Qwen-7B-Chat q4f16_0 chatml "--model-type qwen --prefill-chunk-size 
 build_model Mistral-7B-Instruct-v0.2 q4f16_0 mistral_default "--sliding-window-size 1024 --prefill-chunk-size 256"
 
 # Gemma-2G-it
-# build_model gemma-2b-it q4f16_0 gemma_instruction  "--prefill-chunk-size 256 --context-window-size 4096"
+build_model gemma-2b-it q4f16_0 gemma_instruction  "--prefill-chunk-size 256 --context-window-size 4096"
 
 # Phi-2
 build_model phi-2 q4f16_0 phi-2 "--prefill-chunk-size 256 --context-window-size 4096"
@@ -49,8 +49,3 @@ build_model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-wi
 
 # Baichuan-7B
 build_model Baichuan-7B q4f16_0 chatml "--model-type baichuan --prefill-chunk-size 256 --context-window-size 4096"
-
-# Clear temporary builds
-if [ ! -d "$2" ] ; then
-    rm -rf ./dist
-fi
