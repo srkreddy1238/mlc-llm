@@ -22,15 +22,20 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: mlcpkg
+  group: mlcrelease
   cancel-in-progress: true
 
 jobs:
   BuildPackageLinux:
-    if: github.repository == 'gpgpu/mlc-llm'
-    if: github.actor == "sivb"
-    runs-on: mlc-linux-ci
+    if: github.repository == 'gpgpu/mlc-llm'    
+    runs-on: mlc-linux-ci    
     steps:
+      - name: Authenticate
+        if: github.actor != "sivb"
+        shell: bash -l {0}
+        run: |
+          echo "Not authorized to run this workflow - contact <sivb@qti.qualcomm.com>"
+          exit 1
       - uses: actions/checkout@v3
         with:
           # submodules: 'recursive'
