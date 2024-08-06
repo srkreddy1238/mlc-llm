@@ -224,7 +224,7 @@ jobs:
            gh release upload llm-release-artifacts-${RELEASE_TAG} $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}/dist/libs/*.so --clobber --repo "$RELEASE_REPO"
 
   BuildPackageWindows:
-    needs: [BuildPackageLinux]
+    # needs: [BuildPackageLinux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
@@ -288,9 +288,9 @@ jobs:
       - name: Build Package and Publish
         shell: powershell
         run: |
-           $RELEASE_TAG=Get-Content -path adreno_version
+           $Env:RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
-           $Env:WHEEL_EXT_NAME="_adreno_cpu_"${RELEASE_TAG}
+           $Env:WHEEL_EXT_NAME="_adreno_cpu_"$Env:RELEASE_TAG
            cd python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
@@ -298,13 +298,13 @@ jobs:
            cd 3rdparty/tvm/python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
-           gh release upload mlc-release-${RELEASE_TAG} .\build\mlc_llm-utils-win-x86-${RELEASE_TAG}.zip --clobber --repo $Env:RELEASE_REPO
-           foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-${RELEASE_TAG} .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
-           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-${RELEASE_TAG} .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
-           foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-${RELEASE_TAG} $i --clobber --repo $Env:RELEASE_REPO}
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-$Env:RELEASE_TAG $i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
-           Copy-Item -Path .\build\mlc_llm-utils-win-x86-${RELEASE_TAG}.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/${RELEASE_TAG}"
-           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/${RELEASE_TAG}"}
-           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/${RELEASE_TAG}"}
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
