@@ -224,7 +224,7 @@ jobs:
            gh release upload llm-release-artifacts-${RELEASE_TAG} $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}/dist/libs/*.so --clobber --repo "$RELEASE_REPO"
 
   BuildPackageWindows:
-    # needs: [BuildPackageLinux]
+    needs: [BuildPackageLinux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
