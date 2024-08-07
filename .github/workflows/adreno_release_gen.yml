@@ -290,7 +290,7 @@ jobs:
         run: |
            $Env:RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
-           $Env:WHEEL_EXT_NAME="_adreno_cpu_"$Env:RELEASE_TAG
+           $Env:WHEEL_EXT_NAME="_adreno_cpu_$Env:RELEASE_TAG"
            cd python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
