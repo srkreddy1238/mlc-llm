@@ -34,18 +34,13 @@ jobs:
       - uses: actions/checkout@v3
         with:
           # submodules: 'recursive'
-          ref: 'rebase-main'
+          ref: 'rebase_staging'
           fetch-depth: 0
       - name: Sync Sub modules
         shell: bash -l {0}
         run: |
           git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          cd 3rdparty/tvm
-          git checkout -b rebase_staging origin/rebase_staging
-          git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          cd -
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive          
       - name: Lint
         shell: bash -l {0}
         run: |
@@ -151,40 +146,6 @@ jobs:
            cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64/lib/ -rfa
            cd ..
            sh ci/task/test_adreno_models.sh `cat /etc/mlc-device`
-      - name: Build CLI and Test on Target
-        shell: bash -l {0}
-        run: |
-           set -e
-           mkdir -p build-arm64 && cd build-arm64
-           echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
-           echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
-           echo set\(USE_CUDA OFF\) >> config.cmake
-           echo set\(USE_CUTLASS OFF\) >> config.cmake
-           echo set\(USE_CUBLAS OFF\) >> config.cmake
-           echo set\(USE_ROCM OFF\) >> config.cmake
-           echo set\(USE_VULKAN OFF\) >> config.cmake
-           echo set\(USE_METAL OFF\) >> config.cmake
-           echo set\(USE_OPENCL ON\) >> config.cmake
-           echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
-           echo set\(USE_FLASHINFER OFF\) >> config.cmake
-           echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
-           echo set\(USE_ADRENO_ACCL_GRAPH_EXECUTOR "${ADRENOACCL_SDK}"\) >> config.cmake
-           cmake -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
-                 -DANDROID_ABI=arm64-v8a \
-                 -DANDROID_PLATFORM=android-28 \
-                 -DCMAKE_SYSTEM_VERSION=1 \
-                 -DCMAKE_FIND_ROOT_PATH="${ADRENO_OPENCL}:${ADRENOACCL_SDK}" \
-                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
-                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-                 -DCMAKE_CXX_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ \
-                 -DCMAKE_C_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang \
-                 -DMACHINE_NAME="aarch64-linux-gnu" \
-                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64 ..
-           cmake --build . --parallel $(nproc) --target install
-           rm -rf `find mlc_llm-utils-linux-arm64 -name "*.a"`
-           cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64/lib/ -rfa
-           cd ..
-           sh ci/task/test_adreno_models.sh `cat /etc/mlc-device`
   MLC-Build-Windows:
     needs: [MLC-Build-Linux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
@@ -193,18 +154,12 @@ jobs:
       - uses: actions/checkout@v3
         with:
           #submodules: 'recursive'
-          ref: ''
+          ref: 'rebase_staging'
       - name: Sync Sub modules
         shell: powershell
         run: |
           git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          Push-Location
-          cd 3rdparty/tvm
-          git checkout -b rebase_staging origin/rebase_staging
-          git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          Pop-Location
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive          
       - name: Compile MLC
         shell: powershell
         run: |
@@ -261,17 +216,13 @@ jobs:
       - uses: actions/checkout@v3
         with:
           # submodules: 'recursive'
+          ref: 'rebase_staging'
           fetch-depth: 0
       - name: Sync Sub modules
         shell: bash -l {0}
         run: |
           git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          cd 3rdparty/tvm
-          git checkout -b rebase_staging origin/rebase_staging
-          git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          cd -
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive          
       - name: Build MLC CPU Host Wheel
         shell: bash -l {0}
         run: |
@@ -449,18 +400,12 @@ jobs:
       - uses: actions/checkout@v3
         with:
           # submodules: 'recursive'
-          ref: ''
+          ref: 'rebase_staging'
       - name: Sync Sub modules
         shell: powershell
         run: |
           git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          Push-Location
-          cd 3rdparty/tvm
-          git checkout -b rebase_staging origin/rebase_staging
-          git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
-          Pop-Location
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive          
       - name: Compile MLC
         shell: powershell
         run: |
