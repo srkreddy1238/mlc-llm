@@ -88,6 +88,7 @@ int ChatState::chat(std::string prompt) {
   if (!prompt.empty()) {
     int ret = generate(prompt);
     __json_wrapper->background_loops->terminate();
+    this->__json_wrapper->engine_state->getStats();
     return ret;
   }
   std::string cin_prompt;

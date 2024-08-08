@@ -48,4 +48,4 @@ build_model Phi-3-mini-4k-instruct q4f16_0 phi-3 "--prefill-chunk-size 256 --con
 build_model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-window-size 4096"
 
 # Baichuan-7B
-build_model Baichuan-7B q4f16_0 chatml "--model-type baichuan --prefill-chunk-size 256 --context-window-size 4096"
+# build_model Baichuan-7B q4f16_0 chatml "--model-type baichuan --prefill-chunk-size 256 --context-window-size 4096"

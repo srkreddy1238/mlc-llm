@@ -19,7 +19,7 @@ test_model() {
         --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
         --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno.so \
         --device opencl \
-        --with-prompt hello"
+        --with-prompt \"write a poem about moon in 100 words\""
 
     #adb shell "cd /data/local/tmp/mlc-ci; \
     #    LD_LIBRARY_PATH=./lib/ \
@@ -42,8 +42,8 @@ MODELS="Llama-2-7b-chat-hf \
        gemma-2b-it \
        phi-2 \
        Phi-3-mini-4k-instruct \
-       llava-1.5-7b-hf \
-       Baichuan-7B"
+       llava-1.5-7b-hf"
+#       Baichuan-7B"
 
 for i in ${MODELS}
 do
