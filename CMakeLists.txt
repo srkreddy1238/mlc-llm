@@ -145,6 +145,8 @@ if(NOT CARGO_EXECUTABLE)
     message(FATAL_ERROR "Cargo is not found! Please install cargo.")
 endif()
 
+add_subdirectory(apps/mlc_cli_chat)
+
 # when this option is on,
 # we install all static lib deps into lib
 if (MLC_LLM_INSTALL_STATIC_LIB)
@@ -170,6 +172,7 @@ else()
     mlc_llm_static
     tokenizers_cpp
     sentencepiece-static
+    mlc_cli_chat
     RUNTIME_DEPENDENCY_SET tokenizers_c
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib${LIB_SUFFIX}
