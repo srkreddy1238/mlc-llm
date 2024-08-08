@@ -362,7 +362,7 @@ jobs:
            rm -rf staging
            gh release delete llm-staging-artifacts --cleanup-tag --yes --repo "$STAGING_RELEASE_REPO_MLC" || true
            gh release create llm-staging-artifacts --latest --title llm-staging-artifacts --repo "$STAGING_RELEASE_REPO_MLC" --notes "Android (Adreno) LLM Nightly artifacts"
-           gh release upload llm-staging-artifacts $LLM_STAGING_ARTIFACTS/dist/libs/*.so --clobber --repo "$STAGING_RELEASE_REPO_MLC"
+           gh release upload llm-staging-artifacts $CI_LLM_STAGING_ARTIFACTS/dist/libs/*.so --clobber --repo "$STAGING_RELEASE_REPO_MLC"
   BuildPackageWindows:
     needs: [BuildPackageLinux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
