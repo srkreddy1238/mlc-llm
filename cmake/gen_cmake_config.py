@@ -29,6 +29,11 @@ if __name__ == "__main__":
             "Use OpenCLHostPtr? (y/n): ",
             opencl_backend,
         ),
+        Backend(
+            "OpenCL Host Ptr",
+            "USE_OPENCL_ENABLE_HOST_PTR",
+            "Use OpenCL Host Ptr for Zero Copy ? (y/n)",
+        ),
     ]
 
     enabled_backends = set()
