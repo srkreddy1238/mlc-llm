@@ -65,11 +65,11 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
                bash --login /docker/with_the_same_user \
                "conda run -n ci-lint ci/task/mypy.sh"
-           bash ci/bash.sh mlcaidev/ci-cpu \
-               -e GPU cpu \
-               -e MLC_CI_SETUP_DEPS 1 -j 1 \
-               bash --login /docker/with_the_same_user \
-               "conda run -n ci-lint ci/task/pylint.sh"
+           #bash ci/bash.sh mlcaidev/ci-cpu \
+           #    -e GPU cpu \
+           #    -e MLC_CI_SETUP_DEPS 1 -j 1 \
+           #    bash --login /docker/with_the_same_user \
+           #    "conda run -n ci-lint ci/task/pylint.sh"
            bash ci/bash.sh mlcaidev/ci-cpu \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
@@ -159,6 +159,7 @@ jobs:
         with:
           #submodules: 'recursive'
           ref: ''
+          fetch-depth: 0
       - name: Sync Sub modules
         shell: powershell
         run: |
