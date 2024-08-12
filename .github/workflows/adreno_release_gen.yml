@@ -263,7 +263,7 @@ jobs:
         shell: powershell
         run: |
            $RELEASE_TAG = Get-Content -path adreno_version
-           $Env:ADRENOACCL_SDK_X86="$pwd\AdrenoAcCL-win-x86-${RELEASE_TAG}"
+           $Env:ADRENOACCL_SDK_X86="$pwd\AdrenoAcCL-win-x86-${RELEASE_TAG}".Replace('\', '\\')
            Push-Location
            New-Item -ItemType Directory -Force -Path "./build"
            cd build
@@ -291,7 +291,7 @@ jobs:
         shell: powershell
         run: |
            $RELEASE_TAG=Get-Content -path adreno_version
-           $Env:ADRENOACCL_SDK_X86="$pwd\AdrenoAcCL-win-x86-${RELEASE_TAG}"
+           $Env:ADRENOACCL_SDK_X86="$pwd\AdrenoAcCL-win-x86-${RELEASE_TAG}".Replace('\', '\\')
            Push-Location
            New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
            cd 3rdparty/tvm/build/;
