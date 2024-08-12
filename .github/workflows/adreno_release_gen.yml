@@ -255,8 +255,7 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
       - name: Setup AdrenoAcCL
         shell: bash -l {0}
-        run: |
-          set -e
+        run: |          
           $RELEASE_TAG = Get-Content -path adreno_version
           wget https://github.qualcomm.com/gpgpu/adreno-ai-release/releases/download/adrenoaccl-release-${RELEASE_TAG}/AdrenoAcCL-win-x86-${RELEASE_TAG}.zip
           Expand-Archive -LiteralPath '.\AdrenoAcCL-win-x86-${RELEASE_TAG}.zip' -DestinationPath '.\AdrenoAcCL-win-x86-${RELEASE_TAG}\'
