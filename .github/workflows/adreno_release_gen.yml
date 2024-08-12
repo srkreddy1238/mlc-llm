@@ -258,7 +258,7 @@ jobs:
         run: |          
           $RELEASE_TAG = Get-Content -path adreno_version
           Invoke-WebRequest -Uri https://github.qualcomm.com/gpgpu/adreno-ai-release/releases/download/adrenoaccl-release-${RELEASE_TAG}/AdrenoAcCL-win-x86-${RELEASE_TAG}.zip -OutFile AdrenoAcCL-win-x86-${RELEASE_TAG}.zip
-          Expand-Archive -LiteralPath '.\AdrenoAcCL-win-x86-${RELEASE_TAG}.zip' -DestinationPath '.\AdrenoAcCL-win-x86-${RELEASE_TAG}\'
+          Expand-Archive -LiteralPath .\AdrenoAcCL-win-x86-${RELEASE_TAG}.zip -DestinationPath .\AdrenoAcCL-win-x86-${RELEASE_TAG}\
       - name: Compile MLC
         shell: powershell
         run: |
