@@ -31,6 +31,8 @@ class EngineState {
   std::shared_ptr<std::condition_variable> queue_cv;
   double decode_tokens_per_s;
   double prefill_tokens_per_s;
+  double prompt_tokens;
+  double completion_tokens;
 
   EngineState();
   std::function<void(const std::string&)> get_request_stream_callback();

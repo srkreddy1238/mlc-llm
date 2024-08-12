@@ -160,6 +160,8 @@ std::string EngineState::handle_chat_completion(tvm::runtime::Module mod,
           // fill the stats details
           this->decode_tokens_per_s = decode_tokens_per_s;
           this->prefill_tokens_per_s = prefill_tokens_per_s;
+          this->prompt_tokens = prompt_tokens;
+          this->completion_tokens = completion_tokens;
         }
       }
     }
@@ -171,8 +173,11 @@ std::string EngineState::handle_chat_completion(tvm::runtime::Module mod,
 }
 
 void EngineState::getStats() {
-  std::cout << " decode_tokens_per_s : " << this->decode_tokens_per_s
-            << ", prefill_tokens_per_s : " << this->prefill_tokens_per_s << std::endl;
+  std::cout << " decode : " << this->decode_tokens_per_s << " tok/sec (" << this->completion_tokens
+            << " tokens in " << this->completion_tokens / this->decode_tokens_per_s << " sec)"
+            << ", prefill : " << this->prefill_tokens_per_s << " tok/sec (" << this->prompt_tokens
+            << " tokens in " << this->prompt_tokens / this->prefill_tokens_per_s << " sec)"
+            << std::endl;
 }
 
 // Default Constructor
