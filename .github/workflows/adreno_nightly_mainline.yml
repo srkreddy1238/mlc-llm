@@ -38,6 +38,7 @@ jobs:
           repository: "git@github.com:mlc-ai/mlc-llm.git"
           submodules: 'recursive'
           fetch-depth: 0
+          ref: "main"
       - name: Sync Sub modules
         shell: bash -l {0}
         run: |
