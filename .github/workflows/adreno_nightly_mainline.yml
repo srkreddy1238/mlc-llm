@@ -35,7 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          # submodules: 'recursive'
+          repository: "git@github.com:mlc-ai/mlc-llm.git"
+          submodules: 'recursive'
           fetch-depth: 0
       - name: Sync Sub modules
         shell: bash -l {0}
