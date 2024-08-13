@@ -35,10 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          repository: "git@github.com:mlc-ai/mlc-llm.git"
-          submodules: 'recursive'
-          fetch-depth: 0
-          ref: "main"
+          # submodules: 'recursive'
+          fetch-depth: 0          
       - name: Sync Sub modules
         shell: bash -l {0}
         run: |
@@ -46,15 +44,11 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
       - name: Checkout Mainline
         run: |
-          if ! git remote -v | grep ^mainline ; then git remote add mainline git@github.com:mlc-ai/mlc-llm.git ; fi
-          git fetch mainline
-      - name: Rebase with Mainline
-        run: |
-          git checkout -b mainline-main mainline/main
-          #git submodule update
+          git clone --recursive git@github.com:mlc-ai/mlc-llm.git mainline-repo                
       - name: Compile MLC
         shell: bash -l {0}
         run: |
+           cd mainline-repo
            mkdir -p build && cd build
            echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
            echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
@@ -71,6 +65,7 @@ jobs:
       - name: Compile TVM
         shell: bash -l {0}
         run: |
+           cd mainline-repo
            conda env list
            mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
            cp ../cmake/config.cmake . -f;
@@ -81,6 +76,7 @@ jobs:
       - name: Check Build Status
         shell: bash -l {0}
         run: |
+           cd mainline-repo
            export PYTHONPATH=./python:$PYTHONPATH
            export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
            export PATH=/usr/local/cuda-12.2/bin:$PATH
