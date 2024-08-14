@@ -21,13 +21,13 @@ test_model() {
         --device opencl \
         --with-prompt \"write a poem about moon in 100 words\""
 
-    #adb shell "cd /data/local/tmp/mlc-ci; \
-    #    LD_LIBRARY_PATH=./lib/ \
-    #    ./bin/mlc_cli_chat \
-    #    --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
-    #    --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-accl.so \
-    #    --device opencl \
-    #    --with-prompt hello"
+    adb shell "cd /data/local/tmp/mlc-ci; \
+        LD_LIBRARY_PATH=./lib/ \
+        ./bin/mlc_cli_chat \
+        --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
+        --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-accl.so \
+        --device opencl \
+        --with-prompt \"write a poem about moon in 100 words\""
 }
 
 # Setup target
