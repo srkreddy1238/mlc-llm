@@ -95,7 +95,7 @@ int ChatState::chat(std::string prompt) {
   while (true) {
     std::cout << ">>> ";
     std::getline(std::cin, cin_prompt);
-    if (cin_prompt == "/exit") {
+    if (std::cin.eof() || cin_prompt == "/exit") {
       __json_wrapper->background_loops->terminate();
       break;
     } else if (cin_prompt == "/help") {
