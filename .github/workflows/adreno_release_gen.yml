@@ -26,8 +26,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  BuildPackageLinux:
-    needs: [BuildPackageWindowsNoACCL]
+  BuildPackageLinux:    
     if: github.repository == 'gpgpu/mlc-llm'    
     runs-on: mlc-linux-ci    
     steps:
@@ -335,7 +334,7 @@ jobs:
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   BuildPackageLinuxNoACCL:  
-    # needs: [BuildPackageWindows]
+    needs: [BuildPackageLinux]
     if: github.repository == 'gpgpu/mlc-llm'
     runs-on: mlc-linux-ci
     steps:
