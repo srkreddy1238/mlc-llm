@@ -27,6 +27,7 @@ concurrency:
 
 jobs:
   BuildPackageLinux:
+    needs: [BuildPackageLinuxNoACCL]
     if: github.repository == 'gpgpu/mlc-llm'    
     runs-on: mlc-linux-ci    
     steps:
@@ -334,7 +335,7 @@ jobs:
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   BuildPackageLinuxNoACCL:  
-    needs: [BuildPackageWindows]
+    # needs: [BuildPackageWindows]
     if: github.repository == 'gpgpu/mlc-llm'
     runs-on: mlc-linux-ci
     steps:
@@ -365,7 +366,7 @@ jobs:
            bash ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_cpu_no-accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_cpu_no_accl_"${RELEASE_TAG} \
                conda run -n py38 ./ci/task/build_wheel.sh
            mkdir -p release
            cp wheels/*.whl release/
@@ -385,7 +386,7 @@ jobs:
            bash ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cuda-12.1 \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_cuda_no-accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_cuda_no_accl_"${RELEASE_TAG} \
                conda run -n py38 ./ci/task/build_wheel.sh
            mkdir -p release
            cp wheels/*.whl release/
@@ -406,7 +407,7 @@ jobs:
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_mlc_cpu_no-accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cpu_no_accl_"${RELEASE_TAG} \
                conda run -n py38 ./ci/adreno/build_wheel.sh
            mkdir -p ../../release
            cp wheels/*.whl ../../release/
@@ -428,7 +429,7 @@ jobs:
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cuda-12.1 \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_mlc_cuda_no-accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cuda_no_accl_"${RELEASE_TAG} \
                conda run -n py38 ./ci/adreno/build_wheel.sh
            mkdir -p ../../release
            cp wheels/*.whl ../../release/
@@ -481,8 +482,8 @@ jobs:
                attrs git-lfs gcc=10.4 gxx=10.4 python=3.8
            conda activate mlc-ci
            conda env list
-           pip install release/mlc_llm_adreno_cuda_no-accl*.whl
-           pip install release/tvm_adreno_mlc_cuda_no-accl*.whl
+           pip install release/mlc_llm_adreno_cpu_no_accl*.whl
+           pip install release/tvm_adreno_mlc_cpu_no_accl*.whl
            export LD_LIBRARY_PATH=$CUDA_PATH/lib64/
            export PATH=$CUDA_PATH/bin:$PATH
            python -c "import mlc_llm; print(mlc_llm.__path__)"
@@ -559,7 +560,7 @@ jobs:
         run: |
            $Env:RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
-           $Env:WHEEL_EXT_NAME="_adreno_cpu_no-accl_$Env:RELEASE_TAG"
+           $Env:WHEEL_EXT_NAME="_adreno_cpu_no_accl_$Env:RELEASE_TAG"
            cd python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
