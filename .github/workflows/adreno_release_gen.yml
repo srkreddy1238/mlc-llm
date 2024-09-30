@@ -333,7 +333,7 @@ jobs:
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-BuildPackageLinuxNoACCL:
+  BuildPackageLinuxNoACCL:  
     needs: [BuildPackageWindows]
     if: github.repository == 'gpgpu/mlc-llm'
     runs-on: mlc-linux-ci
@@ -497,7 +497,7 @@ BuildPackageLinuxNoACCL:
            mkdir -p ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}
            cp release/* ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}/ -rfa
            rm -rf release
-BuildPackageWindowsNoACCL:
+  BuildPackageWindowsNoACCL:
     needs: [BuildPackageLinuxNoACCL]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
