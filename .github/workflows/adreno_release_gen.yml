@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   BuildPackageLinux:
-    needs: [BuildPackageLinuxNoACCL]
+    needs: [BuildPackageWindowsNoACCL]
     if: github.repository == 'gpgpu/mlc-llm'    
     runs-on: mlc-linux-ci    
     steps:
