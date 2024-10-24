@@ -36,6 +36,7 @@ class GemmaConfig(ConfigBase):  # pylint: disable=too-many-instance-attributes
     prefill_chunk_size: int = 0
     tensor_parallel_shards: int = 1
     max_batch_size: int = 1
+    perplexity: bool = False
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
@@ -237,6 +238,7 @@ class GemmaForCausalLM(nn.Module):  # pylint: disable=too-many-instance-attribut
         self.rope_theta = config.position_embedding_base
         self.tensor_parallel_shards = config.tensor_parallel_shards
         self.dtype = "float32"
+        self.perplexity = config.perplexity
 
     def to(self, dtype: Optional[str] = None):
         super().to(dtype=dtype)
@@ -276,7 +278,8 @@ class GemmaForCausalLM(nn.Module):  # pylint: disable=too-many-instance-attribut
             return te.compute((b, 1, d), lambda i, _, k: x[i, s - 1, k], name="index")
 
         hidden_states = self.model(input_embed, paged_kv_cache)
-        hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
+        if not self.perplexity:
+            hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
         logits = self.get_logits(hidden_states)
         return logits, paged_kv_cache
 

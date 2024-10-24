@@ -40,6 +40,7 @@ class QWen2Config(ConfigBase):  # pylint: disable=too-many-instance-attributes
     head_dim: int = 0
     dtype: str = "float32"
     max_batch_size: int = 1
+    perplexity: bool = False
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
@@ -243,6 +244,7 @@ class QWen2LMHeadModel(nn.Module):  # pylint: disable=too-many-instance-attribut
         self.vocab_size = config.vocab_size
         self.tensor_parallel_shards = config.tensor_parallel_shards
         self.head_dim = config.head_dim
+        self.perplexity = config.perplexity
 
     def to(self, dtype: Optional[str] = None):
         super().to(dtype=dtype)
@@ -282,7 +284,8 @@ class QWen2LMHeadModel(nn.Module):  # pylint: disable=too-many-instance-attribut
             return te.compute((b, 1, d), lambda i, _, k: x[i, s - 1, k], name="index")
 
         hidden_states = self.model(input_embed, paged_kv_cache)
-        hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
+        if not self.perplexity:
+            hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
         if self.tie_word_embeddings:
             logits = self.model.embed_tokens.lm_head_forward(hidden_states)
         else:

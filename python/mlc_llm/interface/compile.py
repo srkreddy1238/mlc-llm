@@ -38,6 +38,7 @@ class CompileArgs:  # pylint: disable=too-many-instance-attributes
     output: Path
     overrides: ModelConfigOverride
     debug_dump: Optional[Path]
+    perplexity: bool
 
     def __post_init__(self) -> None:
         self.opt.update(self.target, self.quantization)
@@ -233,6 +234,7 @@ def compile(  # pylint: disable=too-many-arguments,redefined-builtin
         avs = config.pop("active_vocab_size")
         logger.info("Active vocab size from input config: %s", str(avs))
     if "model_config" in config:
+        perplexity = config["perplexity"]
         model_config = config.pop("model_config")
         model_config.update(config)
         model_config = model_type.config.from_dict(model_config)
@@ -250,6 +252,7 @@ def compile(  # pylint: disable=too-many-arguments,redefined-builtin
         output,
         overrides,
         debug_dump,
+        perplexity,
     )
     args.display()
     _compile(args, model_config)

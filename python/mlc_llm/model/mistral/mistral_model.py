@@ -38,6 +38,7 @@ class MistralConfig(ConfigBase):  # pylint: disable=too-many-instance-attributes
     attention_sink_size: int = 4
     tensor_parallel_shards: int = 1
     max_batch_size: int = 1
+    perplexity: bool = False
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):  # pylint: disable=too-many-branches
@@ -236,6 +237,7 @@ class MistralForCausalLM(nn.Module):  # pylint: disable=too-many-instance-attrib
         self.tensor_parallel_shards = config.tensor_parallel_shards
         self.sliding_window_size = config.sliding_window_size
         self.dtype = "float32"
+        self.perplexity = config.perplexity
 
     def to(self, dtype: Optional[str] = None):
         super().to(dtype=dtype)
@@ -271,7 +273,8 @@ class MistralForCausalLM(nn.Module):  # pylint: disable=too-many-instance-attrib
             return te.compute((b, 1, d), lambda i, _, k: x[i, s - 1, k], name="index")
 
         hidden_states = self.model(input_embed, paged_kv_cache)
-        hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
+        if not self.perplexity:
+            hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
         logits = self.lm_head(hidden_states)
         if logits.dtype != "float32":
             logits = logits.astype("float32")

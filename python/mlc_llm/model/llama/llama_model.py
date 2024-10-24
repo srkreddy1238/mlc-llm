@@ -40,6 +40,7 @@ class LlamaConfig(ConfigBase):  # pylint: disable=too-many-instance-attributes
     pipeline_parallel_stages: int = 1
     max_batch_size: int = 1
     disaggregation: bool = False
+    perplexity: bool = False
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):  # pylint: disable=too-many-branches
@@ -263,6 +264,7 @@ class LlamaForCausalLM(nn.Module):  # pylint: disable=too-many-instance-attribut
         self.tensor_parallel_shards = config.tensor_parallel_shards
         self.disaggregation = config.disaggregation
         self.dtype = "float32"
+        self.perplexity = config.perplexity
 
         def _set_pp():
             # hidden layers
@@ -341,7 +343,8 @@ class LlamaForCausalLM(nn.Module):  # pylint: disable=too-many-instance-attribut
             return te.compute((b, 1, d), lambda i, _, k: x[i, s - 1, k], name="index")
 
         hidden_states = self.model(input_embed, paged_kv_cache)
-        hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
+        if not self.perplexity:
+            hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
         logits = self.get_logits(hidden_states)
         return logits, paged_kv_cache
 

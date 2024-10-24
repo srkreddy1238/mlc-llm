@@ -42,6 +42,7 @@ class Phi3Config(ConfigBase):  # pylint: disable=too-many-instance-attributes
     max_batch_size: int = 1
     tie_word_embeddings: bool = False
     partial_rotary_factor: float = 1.0
+    perplexity: bool = False
     kwargs: Dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
@@ -254,6 +255,7 @@ class Phi3ForCausalLM(nn.Module):
         self.tensor_parallel_shards = config.tensor_parallel_shards
         self.partial_rotary_factor = config.partial_rotary_factor
         self.dtype = "float32"
+        self.perplexity = config.perplexity
 
     def to(self, dtype: Optional[str] = None):
         super().to(dtype=dtype)
@@ -291,7 +293,8 @@ class Phi3ForCausalLM(nn.Module):
             return te.compute((b, 1, d), lambda i, _, k: x[i, s - 1, k], name="index")
 
         hidden_states = self.transformer(input_embed, paged_kv_cache)
-        hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
+        if not self.perplexity:
+            hidden_states = op.tensor_expr_op(_index, name_hint="index", args=[hidden_states])
         logits = self.get_logits(hidden_states)
         return logits, paged_kv_cache
 

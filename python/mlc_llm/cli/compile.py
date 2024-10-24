@@ -111,6 +111,11 @@ def main(argv):
         help=HELP["overrides"] + ' (default: "%(default)s")',
     )
     parser.add_argument(
+        "--perplexity",
+        type=bool,
+        default=False,
+    )
+    parser.add_argument(
         "--debug-dump",
         type=partial(_parse_dir, auto_create=True),
         default=None,
@@ -128,7 +133,7 @@ def main(argv):
     )
     with open(parsed.model, "r", encoding="utf-8") as config_file:
         config = json.load(config_file)
-
+    config["perplexity"] = parsed.perplexity
     compile(
         config=config,
         quantization=parsed.quantization,
