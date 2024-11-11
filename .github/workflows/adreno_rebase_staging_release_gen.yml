@@ -441,8 +441,8 @@ jobs:
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-staging .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:STAGING_RELEASE_REPO_MLC}
            foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-staging-artifacts $i --clobber --repo $Env:STAGING_RELEASE_REPO_MLC}
            # Copy to common Linux CI
-           Copy-Item -Path .\build\mlc_llm-utils-win-x86.zip -Destination "$Env:CI_PACKAGE_REPO_NIGHTLY/"
-           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_NIGHTLY/"}
-           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_NIGHTLY/"}
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86.zip -Destination "$Env:CI_PACKAGE_REPO_STAGING/"
+           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_STAGING/"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_STAGING/"}           
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
