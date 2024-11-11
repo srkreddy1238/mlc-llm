@@ -121,7 +121,7 @@ jobs:
           #submodules: 'recursive'
           ref: 'linaro'
       - name: Sync Sub modules
-        shell: bash -l {0}
+        shell: powershell
         run: |
           git submodule sync --recursive
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
@@ -335,7 +335,7 @@ jobs:
           # submodules: 'recursive'
           ref: 'linaro'
       - name: Sync Sub modules
-        shell: bash -l {0}
+        shell: powershell
         run: |
           git submodule sync --recursive
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
