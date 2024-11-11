@@ -5,6 +5,13 @@ $MODEL_ARTIFACTS_PATH = $args[0]
 
 New-Item -ItemType Directory -Path "./dist/libs" -Force
 
+$ACCL = 1
+ForEach ($arg in $args){
+  if ($arg -eq "NOACCL") {
+    $ACCL = 0
+  }
+}
+
 # Function to build the model
 function build-model {
     param(
@@ -19,10 +26,12 @@ function build-model {
     Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 -o ./dist/libs/${model}-${quantization}-adreno.dll"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    # Compile the model for Adreno with acceleration
-    $global:LASTEXITCODE = 0
-    Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt adrenoaccl=1 -o ./dist/libs/${model}-${quantization}-adreno-accl.dll"
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    if ( $ACCL -eq "1") {
+      # Compile the model for Adreno with acceleration
+      $global:LASTEXITCODE = 0
+      Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt adrenoaccl=1 -o ./dist/libs/${model}-${quantization}-adreno-accl.dll"
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
 }
 
 # Build the models

@@ -1,0 +1,404 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# GH actions.
+
+name: Adreno MLC Linaro Build Test and Release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: CI-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  MLC-Build-Linux:
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: mlc-linux-ci
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # submodules: 'recursive'
+          ref: 'linaro'
+          fetch-depth: 0
+      - name: Sync Sub modules
+        shell: bash -l {0}
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Compile MLC
+        shell: bash -l {0}
+        run: |
+           mkdir -p build && cd build
+           echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
+           echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
+           echo set\(USE_CUDA ON\) >> config.cmake
+           echo set\(USE_CUTLASS OFF\) >> config.cmake
+           echo set\(USE_CUBLAS OFF\) >> config.cmake
+           echo set\(USE_ROCM OFF\) >> config.cmake
+           echo set\(USE_VULKAN OFF\) >> config.cmake
+           echo set\(USE_METAL OFF\) >> config.cmake
+           echo set\(USE_OPENCL ON\) >> config.cmake
+           echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
+           echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           cmake .. && cmake --build . --parallel $(nproc) && cd ..
+      - name: Compile TVM
+        shell: bash -l {0}
+        run: |
+           mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake . -f;
+           echo set\(USE_OPENCL ON\) >> config.cmake;
+           echo set\(USE_LLVM ON\) >> config.cmake;
+           echo set\(USE_CUDA ON\) >> config.cmake;
+           cmake .. && cmake --build . --parallel $(nproc); cd -
+      - name: Check Build Status
+        shell: bash -l {0}
+        run: |
+           export PYTHONPATH=./python:$PYTHONPATH
+           export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
+           export PATH=$CUDA_PATH/bin:$PATH
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+      - name: Build LLM Models
+        shell: bash -l {0}
+        run: |
+           export PYTHONPATH=./python:$PYTHONPATH
+           export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
+           export PATH=$CUDA_PATH/bin:$PATH
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY NOACCL
+      - name: Build CLI and Test on Target
+        shell: bash -l {0}
+        run: |
+           set -e
+           mkdir -p build-arm64 && cd build-arm64
+           echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
+           echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
+           echo set\(USE_CUDA OFF\) >> config.cmake
+           echo set\(USE_CUTLASS OFF\) >> config.cmake
+           echo set\(USE_CUBLAS OFF\) >> config.cmake
+           echo set\(USE_ROCM OFF\) >> config.cmake
+           echo set\(USE_VULKAN OFF\) >> config.cmake
+           echo set\(USE_METAL OFF\) >> config.cmake
+           echo set\(USE_OPENCL ON\) >> config.cmake
+           echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
+           echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           cmake -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
+                 -DANDROID_ABI=arm64-v8a \
+                 -DANDROID_PLATFORM=android-28 \
+                 -DCMAKE_SYSTEM_VERSION=1 \
+                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+                 -DCMAKE_CXX_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ \
+                 -DCMAKE_C_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang \
+                 -DMACHINE_NAME="aarch64-linux-gnu" \
+                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64 ..
+           cmake --build . --parallel $(nproc) --target install
+           rm -rf `find mlc_llm-utils-linux-arm64 -name "*.a"`
+           cd ..
+           sh ci/task/test_adreno_models.sh `cat /etc/mlc-device` NOACCL
+  MLC-Build-Windows:
+    needs: [MLC-Build-Linux]
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: mlc-windows
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          #submodules: 'recursive'
+          ref: 'linaro'
+      - name: Sync Sub modules
+        shell: bash -l {0}
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Compile MLC
+        shell: powershell
+        run: |
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./build"
+           cd build
+           echo $Env:PATH
+           Add-Content config.cmake "set(TVM_HOME 3rdparty/tvm)"
+           Add-Content config.cmake "set(CMAKE_BUILD_TYPE RelWithDebInfo)"
+           Add-Content config.cmake "set(USE_CUDA OFF)"
+           Add-Content config.cmake "set(USE_CUTLASS OFF)"
+           Add-Content config.cmake "set(USE_CUBLAS OFF)"
+           Add-Content config.cmake "set(USE_ROCM OFF)"
+           Add-Content config.cmake "set(USE_VULKAN OFF)"
+           Add-Content config.cmake "set(USE_METAL OFF)"
+           Add-Content config.cmake "set(USE_OPENCL ON)"
+           Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
+           Add-Content config.cmake "set(USE_FLASHINFER OFF)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
+      - name: Compile TVM
+        shell: powershell
+        run: |
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
+           cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake .
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
+      - name: Check Build Status
+        shell: powershell
+        run: |
+           $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+      - name: Build LLM Models
+        shell: powershell
+        run: |
+           $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY NOACCL
+  BuildPackageLinux:
+    needs: [MLC-Build-Windows]
+    if: github.repository == 'gpgpu/mlc-llm'
+    runs-on: mlc-linux-ci
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # submodules: 'recursive'
+          ref: 'linaro'
+          fetch-depth: 0
+      - name: Sync Sub modules
+        shell: bash -l {0}
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Build MLC CPU Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           gh release delete linaro --cleanup-tag --yes --repo git@github.qualcomm.com:gpgpu/mlc-llm.git || true
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/task/build_adreno_lib.sh
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -e WHEEL_EXT_NAME "_adreno_cpu" \
+               conda run -n py38 ./ci/task/build_wheel.sh
+           mkdir -p linaro
+           cp wheels/*.whl linaro/
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/task/build_clean.sh
+      - name: Build MLC CUDA Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/task/build_adreno_lib.sh
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -e WHEEL_EXT_NAME "_adreno_cuda" \
+               conda run -n py38 ./ci/task/build_wheel.sh
+           mkdir -p linaro
+           cp wheels/*.whl linaro/
+           bash ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/task/build_clean.sh
+      - name: Build TVM CPU Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           cd 3rdparty/tvm
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/adreno/build_lib.sh
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cpu" \
+               conda run -n py38 ./ci/adreno/build_wheel.sh
+           mkdir -p ../../linaro
+           cp wheels/*.whl ../../linaro/
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cpu \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/adreno/build_clean.sh
+           cd -
+      - name: Build TVM CUDA Host Wheel
+        shell: bash -l {0}
+        run: |
+           set -e
+           cd 3rdparty/tvm
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/adreno/build_lib.sh
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cuda" \
+               conda run -n py38 ./ci/adreno/build_wheel.sh
+           mkdir -p ../../linaro
+           cp wheels/*.whl ../../linaro/
+           bash ../../ci/bash.sh mlcaidev/package-cu121 \
+               -e GPU cuda-12.1 \
+               -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
+               conda run -n py38 ./ci/adreno/build_clean.sh
+           cd -
+      - name: Build MLC Cli for Arm64
+        shell: bash -l {0}
+        run: |
+           set -e
+           mkdir -p build-arm64 && cd build-arm64
+           echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
+           echo set\(CMAKE_BUILD_TYPE RelWithDebInfo\) >> config.cmake
+           echo set\(USE_CUDA OFF\) >> config.cmake
+           echo set\(USE_CUTLASS OFF\) >> config.cmake
+           echo set\(USE_CUBLAS OFF\) >> config.cmake
+           echo set\(USE_ROCM OFF\) >> config.cmake
+           echo set\(USE_VULKAN OFF\) >> config.cmake
+           echo set\(USE_METAL OFF\) >> config.cmake
+           echo set\(USE_OPENCL ON\) >> config.cmake
+           echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
+           echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           cmake -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
+                 -DANDROID_ABI=arm64-v8a \
+                 -DANDROID_PLATFORM=android-28 \
+                 -DCMAKE_SYSTEM_VERSION=1 \
+                 -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+                 -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+                 -DCMAKE_CXX_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ \
+                 -DCMAKE_C_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang \
+                 -DMACHINE_NAME="aarch64-linux-gnu" \
+                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64 ..
+           cmake --build . --parallel $(nproc) --target install
+           rm -rf `find mlc_llm-utils-linux-arm64 -name "*.a"`
+           tar jcvfp mlc_llm-utils-linux-arm64.tar.bz2 mlc_llm-utils-linux-arm64
+           mv mlc_llm-utils-linux-arm64.tar.bz2 ../linaro
+           cd ..
+      - name: Build LLM Models
+        shell: bash -l {0}
+        run: |
+           conda remove -y --name mlc-ci --all
+           conda create -y -n mlc-ci -c conda-forge \
+               llvmdev=15 cmake>=3.24 git rust numpy \
+               decorator psutil typing_extensions scipy \
+               attrs git-lfs gcc=10.4 gxx=10.4 python=3.8
+           conda activate mlc-ci
+           conda env list
+           pip install linaro/mlc_llm_adreno_cuda*.whl
+           pip install linaro/tvm_adreno_mlc_cuda*.whl
+           export LD_LIBRARY_PATH=$CUDA_PATH/lib64/
+           export PATH=$CUDA_PATH/bin:$PATH
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           python -c "import tvm; print(tvm.__path__)"
+           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_LINARO_ARTIFACTS NOACCL
+      - name: Publish Artifacts
+        shell: bash -l {0}
+        run: |
+           gh release delete mlc-linaro --cleanup-tag --yes --repo "$LINARO_RELEASE_REPO_MLC" || true
+           gh release create mlc-linaro --latest --title mlc-linaro --repo "$LINARO_RELEASE_REPO_MLC" --notes "MLC Nightly builds"
+           gh release upload mlc-linaro linaro/*.whl --clobber --repo "$LINARO_RELEASE_REPO_MLC"
+           gh release upload mlc-linaro linaro/*.tar.bz2 --clobber --repo "$LINARO_RELEASE_REPO_MLC"
+           cp linaro/* ${CI_PACKAGE_REPO_LINARO}/ -rfa
+           rm -rf linaro
+           gh release delete llm-linaro-artifacts --cleanup-tag --yes --repo "$LINARO_RELEASE_REPO_MLC" || true
+           gh release create llm-linaro-artifacts --latest --title llm-linaro-artifacts --repo "$LINARO_RELEASE_REPO_MLC" --notes "Android (Adreno) LLM Nightly artifacts"
+           gh release upload llm-linaro-artifacts $CI_LLM_LINARO_ARTIFACTS/dist/libs/*.so --clobber --repo "$LINARO_RELEASE_REPO_MLC"
+  BuildPackageWindows:
+    needs: [BuildPackageLinux]
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: mlc-windows
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # submodules: 'recursive'
+          ref: 'linaro'
+      - name: Sync Sub modules
+        shell: bash -l {0}
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Compile MLC
+        shell: powershell
+        run: |
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./build"
+           cd build
+           echo $Env:PATH
+           Add-Content config.cmake "set(TVM_HOME 3rdparty/tvm)"
+           Add-Content config.cmake "set(CMAKE_BUILD_TYPE RelWithDebInfo)"
+           Add-Content config.cmake "set(USE_CUDA OFF)"
+           Add-Content config.cmake "set(USE_CUTLASS OFF)"
+           Add-Content config.cmake "set(USE_CUBLAS OFF)"
+           Add-Content config.cmake "set(USE_ROCM OFF)"
+           Add-Content config.cmake "set(USE_VULKAN OFF)"
+           Add-Content config.cmake "set(USE_METAL OFF)"
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
+           Add-Content config.cmake "set(USE_FLASHINFER OFF)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-x86" --config Release
+           Compress-Archive -Path mlc_llm-utils-win-x86/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86.zip -Force
+           Pop-Location
+      - name: Compile TVM
+        shell: powershell
+        run: |
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
+           cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake .
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
+      - name: Check Build Status and Build Models
+        shell: powershell
+        run: |
+           $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_LINARO_ARTIFACTS NOACCL
+      - name: Build Package and Publish
+        shell: powershell
+        run: |
+           Push-Location
+           $Env:WHEEL_EXT_NAME="_adreno_cpu"
+           cd python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           Push-Location
+           cd 3rdparty/tvm/python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           gh release upload mlc-linaro .\build\mlc_llm-utils-win-x86.zip --clobber --repo $Env:LINARO_RELEASE_REPO_MLC
+           foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-linaro .\python\dist\$i --clobber --repo $Env:LINARO_RELEASE_REPO_MLC}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-linaro .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:LINARO_RELEASE_REPO_MLC}
+           foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-linaro-artifacts $i --clobber --repo $Env:LINARO_RELEASE_REPO_MLC}
+           # Copy to common Linux CI
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86.zip -Destination "$Env:CI_PACKAGE_REPO_LINARO/"
+           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_LINARO/"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_LINARO/"}
+        env:
+           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
