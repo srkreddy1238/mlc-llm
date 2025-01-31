@@ -42,7 +42,9 @@ MODELS="Llama-2-7b-chat-hf \
        gemma-2b-it \
        phi-2 \
        Phi-3-mini-4k-instruct \
-       llava-1.5-7b-hf"
+       llava-1.5-7b-hf \
+       DeepSeek-R1-Distill-Qwen-1.5B \
+       DeepSeek-R1-Distill-Llama-8B"
 #       Baichuan-7B"
 
 for i in ${MODELS}
