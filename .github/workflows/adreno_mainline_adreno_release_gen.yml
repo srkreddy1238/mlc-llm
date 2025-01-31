@@ -43,6 +43,9 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive          
           git checkout origin/main -- ci/task/*
           git checkout origin/main -- ci/task/*adreno*
+          cd 3rdparty/tvm/build/
+          git checkout origin/main -- ci/adreno/build*
+          cd -
       - name: Compile MLC
         shell: bash -l {0}
         run: |
@@ -135,6 +138,10 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive          
           git checkout origin/main -- ci/task/*
           git checkout origin/main -- ci/task/*adreno*
+          Push-Location
+          cd 3rdparty/tvm/
+          git checkout origin/main -- ci/adreno/build*
+          Pop-Location
       - name: Compile MLC
         shell: powershell
         run: |
@@ -206,6 +213,9 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
           git checkout origin/main -- ci/task/*
           git checkout origin/main -- ci/task/*adreno*
+          cd 3rdparty/tvm/build/
+          git checkout origin/main -- ci/adreno/build*
+          cd -
       - name: Setup AdrenoAcCL
         shell: bash -l {0}
         run: |
@@ -416,6 +426,9 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
           git checkout origin/main -- ci/task/*
           git checkout origin/main -- ci/task/*adreno*
+          cd 3rdparty/tvm/
+          git checkout origin/main -- ci/adreno/build*
+          Pop-Location
       - name: Setup AdrenoAcCL
         shell: powershell
         run: |          
@@ -519,6 +532,9 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
           git checkout origin/main -- ci/task/*
           git checkout origin/main -- ci/task/*adreno*
+          cd 3rdparty/tvm/build/
+          git checkout origin/main -- ci/adreno/build*
+          cd -
       - name: Build MLC CPU Host Wheel
         shell: bash -l {0}
         run: |
@@ -679,6 +695,9 @@ jobs:
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
           git checkout origin/main -- ci/task/*
           git checkout origin/main -- ci/task/*adreno*
+          cd 3rdparty/tvm/
+          git checkout origin/main -- ci/adreno/build*
+          Pop-Location
       - name: Compile MLC
         shell: powershell
         run: |
