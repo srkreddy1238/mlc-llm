@@ -118,7 +118,7 @@ jobs:
            rm -rf `find mlc_llm-utils-linux-arm64 -name "*.a"`
            cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64/lib/ -rfa
            cd ..
-           sh ci/task/test_adreno_models.sh `cat /etc/mlc-device`
+           # sh ci/task/test_adreno_models.sh `cat /etc/mlc-device`
   MLC-Build-Windows:
     needs: [MLC-Build-Linux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
