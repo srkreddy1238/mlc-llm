@@ -181,7 +181,8 @@ jobs:
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
            python -c "import mlc_llm; print(mlc_llm.__path__)"
            ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY
-  BuildPackageLinux:    
+  BuildPackageLinux:
+    needs: [MLC-Build-Linux]
     if: github.repository == 'gpgpu/mlc-llm'    
     runs-on: mlc-linux-ci    
     steps:
