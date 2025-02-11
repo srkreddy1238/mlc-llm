@@ -14,6 +14,7 @@ set(
   ../../3rdparty/tvm/3rdparty/dmlc-core/include
   ../../3rdparty/tvm/3rdparty/picojson
   ../../3rdparty/tokenizers-cpp/include
+  ../../3rdparty/xgrammar/include
 )
 
 add_executable(mlc_cli_chat ${MLC_CLI_SOURCES})

@@ -21,7 +21,7 @@
 
 #include "base.h"
 
-class EngineState {
+class EngineStateCli {
  public:
   std::queue<std::string> sync_queue;
   bool last_chunk_arrived = false;
@@ -34,7 +34,7 @@ class EngineState {
   double prompt_tokens;
   double completion_tokens;
 
-  EngineState();
+  EngineStateCli();
   std::function<void(const std::string&)> get_request_stream_callback();
   std::string handle_chat_completion(tvm::runtime::Module mod, const std::string& request_json,
                                      bool include_usage, const std::string& request_id);
@@ -43,12 +43,12 @@ class EngineState {
 
 class Completions {
  public:
-  std::shared_ptr<EngineState> engine_state;
+  std::shared_ptr<EngineStateCli> engine_state;
   tvm::runtime::Module __mod;
 
   Completions();
 
-  Completions(std::shared_ptr<EngineState> engine_state, tvm::runtime::Module mod);
+  Completions(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod);
 
   inline std::string GenerateUUID(size_t length);
 
@@ -61,7 +61,7 @@ class Chat {
 
   Chat();
 
-  Chat(std::shared_ptr<EngineState> engine_state, tvm::runtime::Module mod);
+  Chat(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod);
 };
 
 class BackgroundLoops {
@@ -88,7 +88,7 @@ class JSONFFIEngineWrapper {
   Chat chat;
   std::shared_ptr<EngineConfig> engine_config;
   tvm::runtime::Module mod;
-  std::shared_ptr<EngineState> engine_state;
+  std::shared_ptr<EngineStateCli> engine_state;
   std::shared_ptr<BackgroundLoops> background_loops;
 
   JSONFFIEngineWrapper();

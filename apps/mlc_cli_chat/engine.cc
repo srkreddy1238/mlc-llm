@@ -56,11 +56,11 @@ void printHistory(std::vector<Message> history) {
   std::cout << "\n";
 }
 
-EngineState::EngineState()
+EngineStateCli::EngineStateCli()
     : queue_cv(std::make_shared<std::condition_variable>()),
       queue_mutex(std::make_shared<std::mutex>()) {}
 
-std::function<void(const std::string&)> EngineState::get_request_stream_callback() {
+std::function<void(const std::string&)> EngineStateCli::get_request_stream_callback() {
   return [this](const std::string& response) -> void {
     {
       this->sync_queue.push(response);
@@ -69,7 +69,7 @@ std::function<void(const std::string&)> EngineState::get_request_stream_callback
   };
 }
 
-std::string EngineState::handle_chat_completion(tvm::runtime::Module mod,
+std::string EngineStateCli::handle_chat_completion(tvm::runtime::Module mod,
                                                 const std::string& request_json, bool include_usage,
                                                 const std::string& request_id) {
   // Clear the queue making sure that queue is empty
@@ -172,7 +172,7 @@ std::string EngineState::handle_chat_completion(tvm::runtime::Module mod,
   return output;
 }
 
-void EngineState::getStats() {
+void EngineStateCli::getStats() {
   std::cout << " decode : " << this->decode_tokens_per_s << " tok/sec (" << this->completion_tokens
             << " tokens in " << this->completion_tokens / this->decode_tokens_per_s << " sec)"
             << ", prefill : " << this->prefill_tokens_per_s << " tok/sec (" << this->prompt_tokens
@@ -218,7 +218,7 @@ void BackgroundLoops::terminate() {
 // Default constructor
 Completions::Completions() {}
 
-Completions::Completions(std::shared_ptr<EngineState> engine_state, tvm::runtime::Module mod) {
+Completions::Completions(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod) {
   this->engine_state = engine_state;
   this->__mod = mod;
 }
@@ -263,7 +263,7 @@ std::string Completions::create(std::vector<Message>& messages) {
 
 Chat::Chat() {}
 
-Chat::Chat(std::shared_ptr<EngineState> engine_state, tvm::runtime::Module mod) {
+Chat::Chat(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod) {
   this->completions = Completions(engine_state, mod);
 }
 
@@ -290,8 +290,8 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper() {}
 JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string model_lib_path,
                                            std::string mode, std::string device,
                                            int device_id = 0) {
-  // Create an instance of EngineState
-  this->engine_state = std::make_shared<EngineState>();
+  // Create an instance of EngineStateCli
+  this->engine_state = std::make_shared<EngineStateCli>();
 
   auto engine = tvm::runtime::Registry::Get("mlc.json_ffi.CreateJSONFFIEngine");
   if (engine == nullptr) {
