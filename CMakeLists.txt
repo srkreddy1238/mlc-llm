@@ -178,6 +178,7 @@ else()
             mlc_llm
             mlc_llm_module
             mlc_llm_static
+            mlc_cli_chat
             tokenizers_cpp
             sentencepiece-static
             RUNTIME_DEPENDENCY_SET
