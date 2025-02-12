@@ -400,6 +400,7 @@ jobs:
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-x86" --config Release
+           Copy-Item -Path $Env:ADRENOACCL_SDK_X86\bin\* -Destination "./mlc_llm-utils-win-x86/bin/"
            Compress-Archive -Path mlc_llm-utils-win-x86/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86.zip -Force
            Pop-Location
       - name: Compile TVM
