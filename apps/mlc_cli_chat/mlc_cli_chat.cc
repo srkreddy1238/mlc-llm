@@ -14,7 +14,7 @@ struct Args {
   std::string device = "auto";
   bool evaluate = false;
   int eval_prompt_len = 128;
-  int eval_gen_len = 1024;
+  int max_tokens = -1;
   std::string prompt;
 };
 
@@ -33,6 +33,7 @@ void printHelp() {
       << "  --model-lib         [optional] the full path to the model library file to use\n"
       << "  --device            (default: auto)\n"
       << "  --with-prompt       [optional] runs one session with given prompt\n"
+      << "  --max-tokens        [optional] generate given number of token [default: -1 (infinite)]\n"
       << "  --help              [optional] Tool usage information\n"
       /*
       << "  --evaluate          (flag, default: false)\n"
@@ -58,10 +59,10 @@ Args parseArgs(int argc, char* argv[]) {
       args.device = arguments[++i];
     } else if (arguments[i] == "--evaluate") {
       args.evaluate = true;
-    } else if (arguments[i] == "--eval-prompt-len" && i + 1 < arguments.size()) {
-      args.eval_prompt_len = std::stoi(arguments[++i]);
-    } else if (arguments[i] == "--eval-gen-len" && i + 1 < arguments.size()) {
-      args.eval_gen_len = std::stoi(arguments[++i]);
+    } else if (arguments[i] == "--max-tokens" && i + 1 < arguments.size()) {
+      args.max_tokens = std::stoi(arguments[++i]);
+    // } else if (arguments[i] == "--eval-gen-len" && i + 1 < arguments.size()) {
+    //   args.eval_gen_len = std::stoi(arguments[++i]);
     } else if (arguments[i] == "--with-prompt" && i + 1 < arguments.size()) {
       args.prompt = arguments[++i];
     } else if (arguments[i] == "--help") {
@@ -115,5 +116,5 @@ int main(int argc, char* argv[]) {
 
   ChatState chat_state(model_path, model_lib_path, mode, device_name, 0);
 
-  return chat_state.chat(args.prompt);
+  return chat_state.chat(args.prompt, args.max_tokens);
 }

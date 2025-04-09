@@ -239,7 +239,7 @@ inline std::string Completions::GenerateUUID(size_t length) {
   return str;
 }
 
-std::string Completions::create(std::vector<Message>& messages) {
+std::string Completions::create(std::vector<Message>& messages, int max_tokens) {
   std::string request_id{""};
   // Method to generate random string
   std::string generate_random_string{GenerateUUID(16)};
@@ -252,11 +252,12 @@ std::string Completions::create(std::vector<Message>& messages) {
   std::string right_braces{"}"};
 
   std::string prompt = messagesToString(messages);
-  std::string jsonStart = R"({"messages":[)";
-  std::string jsonEnd = "]}";
+  std::string jsonStart = R"({)";
+  std::string message_str = R"("messages":[)" + prompt + R"(])";
+  std::string max_token_str = R"(, "max_tokens":)" + std::to_string(max_tokens);
+  std::string jsonEnd = R"(})";
 
-  std::string request_str = jsonStart + prompt + jsonEnd;
-
+  std::string request_str = jsonStart + message_str + max_token_str + jsonEnd;
   std::string output_res =
       engine_state->handle_chat_completion(__mod, request_str, true, request_id);
   return output_res;

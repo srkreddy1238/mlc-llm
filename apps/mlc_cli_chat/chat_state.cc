@@ -37,7 +37,7 @@ std::vector<Message> ChatState::get_current_history_window() {
   return std::vector<Message>(history.begin() + history_window_begin, history.end());
 }
 
-int ChatState::generate(const std::string& prompt) {
+int ChatState::generate(const std::string& prompt, int max_tokens) {
   // setting back the finish_reason_length
   bool finish_reason_length = false;
 
@@ -51,7 +51,7 @@ int ChatState::generate(const std::string& prompt) {
 
   std::string output_text{""};
 
-  output_text = (*__json_wrapper).chat.completions.create(curr_window);
+  output_text = (*__json_wrapper).chat.completions.create(curr_window, max_tokens);
 
   if (__json_wrapper->engine_state->finish_reason == "length") {
     finish_reason_length = true;
@@ -82,11 +82,11 @@ void ChatState::reset() {
   history_window_begin = 0;
 }
 
-int ChatState::chat(std::string prompt) {
+int ChatState::chat(std::string prompt, int max_tokens) {
   print_help_str();
   // Get the prompt message
   if (!prompt.empty()) {
-    int ret = generate(prompt);
+    int ret = generate(prompt, max_tokens);
     __json_wrapper->background_loops->terminate();
     this->__json_wrapper->engine_state->getStats();
     return ret;
@@ -103,7 +103,7 @@ int ChatState::chat(std::string prompt) {
     } else if (cin_prompt == "/stats") {
       this->__json_wrapper->engine_state->getStats();
     } else {
-      generate(cin_prompt);
+      generate(cin_prompt, max_tokens);
     }
   }
   return 0;
