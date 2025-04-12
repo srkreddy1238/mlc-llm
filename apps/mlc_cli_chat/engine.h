@@ -52,7 +52,7 @@ class Completions {
 
   inline std::string GenerateUUID(size_t length);
 
-  std::string create(std::vector<Message>& messages, int max_tokens=-1);
+  std::string create(std::vector<Message>& messages, int max_tokens = -1);
 };
 
 class Chat {
