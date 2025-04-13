@@ -52,14 +52,14 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/task/build_adreno_lib.sh
+               conda run -n py312 ./ci/task/build_adreno_lib.sh
            bash ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
                -e WHEEL_EXT_NAME "_adreno_cpu" \
-               conda run -n py38 ./ci/task/build_wheel.sh
+               conda run -n py312 ./ci/task/build_wheel.sh
            mkdir -p nightly
            cp wheels/*.whl nightly/
            bash ci/bash.sh mlcaidev/package-cu121 \
@@ -67,7 +67,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/task/build_clean.sh
+               conda run -n py312 ./ci/task/build_clean.sh
       - name: Build MLC CUDA Host Wheel
         shell: bash -l {0}
         run: |
@@ -77,14 +77,14 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/task/build_adreno_lib.sh
+               conda run -n py312 ./ci/task/build_adreno_lib.sh
            bash ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cuda-12.1 \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
                -e WHEEL_EXT_NAME "_adreno_cuda" \
-               conda run -n py38 ./ci/task/build_wheel.sh
+               conda run -n py312 ./ci/task/build_wheel.sh
            mkdir -p nightly
            cp wheels/*.whl nightly/
            bash ci/bash.sh mlcaidev/package-cu121 \
@@ -92,7 +92,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/task/build_clean.sh
+               conda run -n py312 ./ci/task/build_clean.sh
       - name: Build TVM CPU Host Wheel
         shell: bash -l {0}
         run: |
@@ -103,14 +103,14 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/adreno/build_lib.sh
+               conda run -n py312 ./ci/adreno/build_lib.sh
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
                -e WHEEL_EXT_NAME "_adreno_mlc_cpu" \
-               conda run -n py38 ./ci/adreno/build_wheel.sh
+               conda run -n py312 ./ci/adreno/build_wheel.sh
            mkdir -p ../../nightly
            cp wheels/*.whl ../../nightly/
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
@@ -118,7 +118,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/adreno/build_clean.sh
+               conda run -n py312 ./ci/adreno/build_clean.sh
            cd -
       - name: Build TVM CUDA Host Wheel
         shell: bash -l {0}
@@ -130,14 +130,14 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/adreno/build_lib.sh
+               conda run -n py312 ./ci/adreno/build_lib.sh
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cuda-12.1 \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
                -e WHEEL_EXT_NAME "_adreno_mlc_cuda" \
-               conda run -n py38 ./ci/adreno/build_wheel.sh
+               conda run -n py312 ./ci/adreno/build_wheel.sh
            mkdir -p ../../nightly
            cp wheels/*.whl ../../nightly/
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
@@ -145,7 +145,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               conda run -n py38 ./ci/adreno/build_clean.sh
+               conda run -n py312 ./ci/adreno/build_clean.sh
            cd -
       - name: Build MLC Cli for Arm64
         shell: bash -l {0}
@@ -189,7 +189,7 @@ jobs:
            conda create -y -n mlc-ci -c conda-forge \
                llvmdev=15 cmake>=3.24 git rust numpy \
                decorator psutil typing_extensions scipy \
-               attrs git-lfs gcc=10.4 gxx=10.4 python=3.8
+               attrs git-lfs gcc=10.4 gxx=10.4 python=3.12
            conda activate mlc-ci
            conda env list
            pip install nightly/mlc_llm_adreno_cuda*.whl
