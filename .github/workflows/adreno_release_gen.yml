@@ -243,7 +243,7 @@ jobs:
            gh release upload llm-release-artifacts-${RELEASE_TAG} $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}/dist/libs/*.so --clobber --repo "$RELEASE_REPO"
 
   BuildPackageWindowsACCL:
-    needs: [BuildPackageLinux]
+    needs: [BuildPackageLinuxACCL]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
@@ -337,7 +337,7 @@ jobs:
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   BuildPackageWindowsCLML:
-    needs: [BuildPackageLinux]
+    needs: [BuildPackageLinuxACCL]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
@@ -422,7 +422,7 @@ jobs:
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   BuildPackageLinux:  
-    needs: [BuildPackageLinux]
+    needs: [BuildPackageLinuxACCL]
     if: github.repository == 'gpgpu/mlc-llm'
     runs-on: mlc-linux-ci
     steps:
@@ -586,7 +586,7 @@ jobs:
            cp release/* ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}/ -rfa
            rm -rf release
   BuildPackageWindows:
-    needs: [BuildPackageLinuxNoACCL]
+    needs: [BuildPackageLinux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
