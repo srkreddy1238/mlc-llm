@@ -774,7 +774,8 @@ class EngineImpl : public Engine {
     auto f_get_num_shards_num_stages =
         [&device](const std::string& model_lib,
                   const tvm::ffi::json::Object& model_config) -> std::pair<int, int> {
-      if (!StartsWith(model_lib, "system://")) {
+      if ((!StartsWith(model_lib, "system://")) &&
+          ((device.device_type == kDLCUDA) || (device.device_type == kDLROCM))) {
         Module executable = ffi::Module::LoadFromFile(model_lib);
         Optional<Function> fload_exec = executable->GetFunction("vm_load_executable");
         TVM_FFI_ICHECK(fload_exec.defined()) << "TVM runtime cannot find vm_load_executable";

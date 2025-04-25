@@ -31,6 +31,7 @@ class OptimizationFlags:
     cutlass: bool = False
     ipc_allreduce_strategy: IPCAllReduceStrategyType = IPCAllReduceStrategyType.NONE
     adrenoaccl: bool = False
+    openclml: bool = False
 
     def __repr__(self) -> str:
         out = StringIO()
@@ -41,6 +42,7 @@ class OptimizationFlags:
         print(f";cutlass={int(self.cutlass)}", file=out, end="")
         print(f";ipc_allreduce_strategy={self.ipc_allreduce_strategy.name}", file=out, end="")
         print(f";adrenoaccl={int(self.adrenoaccl)}", file=out, end="")
+        print(f";openclml={int(self.openclml)}", file=out, end="")
         return out.getvalue().rstrip()
 
     @staticmethod
@@ -70,6 +72,7 @@ class OptimizationFlags:
             default="NONE",
         )
         parser.add_argument("--adrenoaccl", type=boolean, default=False)
+        parser.add_argument("--openclml", type=boolean, default=False)
         results = parser.parse_args([f"--{i}" for i in source.split(";") if i])
         return OptimizationFlags(
             flashinfer=results.flashinfer,
@@ -79,6 +82,7 @@ class OptimizationFlags:
             cutlass=results.cutlass,
             ipc_allreduce_strategy=IPCAllReduceStrategyType[results.ipc_allreduce_strategy],
             adrenoaccl=results.adrenoaccl,
+            openclml=results.openclml,
         )
 
     def update(self, target, quantization) -> None:
@@ -136,12 +140,19 @@ class OptimizationFlags:
                 return False
             return self.adrenoaccl
 
+        def _openclml(target) -> bool:
+            """correct openclml flag"""
+            if "adreno" not in str(target.attrs):
+                return False
+            return self.openclml
+
         self.flashinfer = _flashinfer(target)
         self.cublas_gemm = _cublas_gemm(target, quantization)
         self.faster_transformer = _faster_transformer(target)
         self.cutlass = _cutlass(target)
         self.cudagraph = _cudagraph(target)
         self.adrenoaccl = _adrenoaccl(target)
+        self.openclml = _openclml(target)
 
 
 @dataclasses.dataclass

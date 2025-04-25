@@ -8,6 +8,7 @@ from tvm import IRModule
 from tvm.relax import register_pipeline  # pylint: disable=no-name-in-module
 from tvm.relax.frontend import nn
 from tvm.s_tir import dlight as dl
+from tvm.relax.backend.adreno.clml import OpenCLMLOffLoadForLLM
 from tvm.relax.backend.contrib.adrenoaccl import PartitionForAdrenoACCL
 from tvm.relax.frontend import nn
 
@@ -88,6 +89,7 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
     faster_transformer: bool = False,  # pylint: disable=unused-argument
     allreduce_strategy: IPCAllReduceStrategyType = IPCAllReduceStrategyType.NONE,
     adrenoaccl: bool = False,
+    openclml: bool = False,
     variable_bounds: Dict[str, int] = None,
     cuda_graph_symbolic_capture_hints: Dict[str, List[str]] = None,
     additional_tirs: Dict[str, tvm.tir.PrimFunc] = None,
@@ -137,6 +139,12 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
                 (
                     PartitionForAdrenoACCL(target=target)
                     if adrenoaccl
+                    else tvm.transform.Sequential([])
+                ),
+                # Adreno Openclml BYOC offloading.
+                (
+                    OpenCLMLOffLoadForLLM(target=target)
+                    if openclml
                     else tvm.transform.Sequential([])
                 ),
                 _DebugDump("debug-phase1.py", debug_dump, show_meta=False),

@@ -204,6 +204,7 @@ def _compile(args: CompileArgs, model_config: ConfigBase):
                     faster_transformer=args.opt.faster_transformer,
                     allreduce_strategy=args.opt.ipc_allreduce_strategy,
                     adrenoaccl=args.opt.adrenoaccl,
+                    openclml=args.opt.openclml,
                     variable_bounds=variable_bounds,
                     cuda_graph_symbolic_capture_hints=cuda_graph_symbolic_capture_hints,
                     additional_tirs=additional_tirs,

@@ -16,6 +16,3 @@
 [submodule "3rdparty/xgrammar"]
 	path = 3rdparty/xgrammar
 	url = https://github.com/mlc-ai/xgrammar.git
-[submodule "3rdparty/tvm"]
-        path = 3rdparty/tvm
-        url = https://github.qualcomm.com/gpgpu/apache-tvm
