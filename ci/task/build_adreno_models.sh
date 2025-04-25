@@ -12,7 +12,7 @@ fi
 mkdir ${MODEL_ARTIFACTS_PATH}/dist/libs -p
 
 ACCL=0
-if [ "$3" == "ACCL" ] || [ "$2" == "ACCL" ] ; then
+if [ "$3" = "ACCL" ] || [ "$2" = "ACCL" ] ; then
   ACCL=1
 fi
 
