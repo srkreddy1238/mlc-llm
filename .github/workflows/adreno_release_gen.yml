@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  BuildPackageLinux:    
+  BuildPackageLinuxACCL:    
     if: github.repository == 'gpgpu/mlc-llm'    
     runs-on: mlc-linux-ci    
     steps:
@@ -69,7 +69,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               -e WHEEL_EXT_NAME "_adreno_cpu_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_cpu_accl_"${RELEASE_TAG} \
                conda run -n py312 ./ci/task/build_wheel.sh
            mkdir -p release
            cp wheels/*.whl release/
@@ -96,7 +96,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               -e WHEEL_EXT_NAME "_adreno_cuda_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_cuda_accl_"${RELEASE_TAG} \
                conda run -n py312 ./ci/task/build_wheel.sh
            mkdir -p release
            cp wheels/*.whl release/
@@ -124,7 +124,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               -e WHEEL_EXT_NAME "_adreno_mlc_cpu_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cpu_accl_"${RELEASE_TAG} \
                conda run -n py312 ./ci/adreno/build_wheel.sh
            mkdir -p ../../release
            cp wheels/*.whl ../../release/
@@ -153,7 +153,7 @@ jobs:
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
                -v ${ADRENOACCL_SDK} /adrenoaccl_sdk \
                -e ADRENOACCL_SDK /adrenoaccl_sdk \
-               -e WHEEL_EXT_NAME "_adreno_mlc_cuda_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cuda_accl_"${RELEASE_TAG} \
                conda run -n py312 ./ci/adreno/build_wheel.sh
            mkdir -p ../../release
            cp wheels/*.whl ../../release/
@@ -194,14 +194,14 @@ jobs:
                  -DCMAKE_CXX_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ \
                  -DCMAKE_C_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang \
                  -DMACHINE_NAME="aarch64-linux-gnu" \
-                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64-${RELEASE_TAG} ..
+                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG} ..
            cmake --build . --parallel $(nproc) --target install
-           rm -rf `find mlc_llm-utils-linux-arm64-${RELEASE_TAG} -name "*.a"`
-           cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64-${RELEASE_TAG}/lib/ -rfa
-           tar jcvfp mlc_llm-utils-linux-arm64-${RELEASE_TAG}.tar.bz2 mlc_llm-utils-linux-arm64-${RELEASE_TAG}
-           mv mlc_llm-utils-linux-arm64-${RELEASE_TAG}.tar.bz2 ../release
+           rm -rf `find mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG} -name "*.a"`
+           cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG}/lib/ -rfa
+           tar jcvfp mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG}.tar.bz2 mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG}
+           mv mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG}.tar.bz2 ../release
            cd ..
-      - name: Build LLM Models
+      - name: Build LLM Models and Benchmark
         shell: bash -l {0}
         run: |
            set -e
@@ -214,14 +214,17 @@ jobs:
                attrs git-lfs gcc=10.4 gxx=10.4 python=3.12
            conda activate mlc-ci
            conda env list
-           pip install release/mlc_llm_adreno_cuda*.whl
-           pip install release/tvm_adreno_mlc_cuda*.whl
+           pip install release/mlc_llm_adreno_cuda_accl_*.whl
+           pip install release/tvm_adreno_mlc_cuda_accl_*.whl
            export LD_LIBRARY_PATH=$CUDA_PATH/lib64/
            export PATH=$CUDA_PATH/bin:$PATH
            python -c "import mlc_llm; print(mlc_llm.__path__)"
            python -c "import tvm; print(tvm.__path__)"
            mkdir -p $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
-           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
+           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} "ACCL"
+           python benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-v004 --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device` --with-accl 1
+           python benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-v004 --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device-v5`
+           mv *.csv release/.
       - name: Publish Artifacts
         shell: bash -l {0}
         run: |
@@ -239,7 +242,7 @@ jobs:
            gh release create llm-release-artifacts-${RELEASE_TAG} --latest --title llm-release-artifacts-${RELEASE_TAG} --repo "$RELEASE_REPO" --notes "Android (Adreno) LLM Release artifacts"
            gh release upload llm-release-artifacts-${RELEASE_TAG} $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}/dist/libs/*.so --clobber --repo "$RELEASE_REPO"
 
-  BuildPackageWindows:
+  BuildPackageWindowsACCL:
     needs: [BuildPackageLinux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
@@ -283,9 +286,9 @@ jobs:
            Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
-           cmake --install . --prefix ".\mlc_llm-utils-win-x86-${RELEASE_TAG}" --config Release
-           Copy-Item -Path $Env:ADRENOACCL_SDK_X86\bin\* -Destination "./mlc_llm-utils-win-x86-${RELEASE_TAG}/bin/"
-           Compress-Archive -Path mlc_llm-utils-win-x86-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-${RELEASE_TAG}.zip -Force
+           cmake --install . --prefix ".\mlc_llm-utils-win-x86-accl-${RELEASE_TAG}" --config Release
+           Copy-Item -Path $Env:ADRENOACCL_SDK_X86\bin\* -Destination "./mlc_llm-utils-win-x86-accl-${RELEASE_TAG}/bin/"
+           Compress-Archive -Path mlc_llm-utils-win-x86-accl-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-accl-${RELEASE_TAG}.zip -Force
            Pop-Location
       - name: Compile TVM
         shell: powershell
@@ -309,13 +312,13 @@ jobs:
            $RELEASE_TAG=Get-Content -path adreno_version
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
+           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} "ACCL"
       - name: Build Package and Publish
         shell: powershell
         run: |
            $Env:RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
-           $Env:WHEEL_EXT_NAME="_adreno_cpu_$Env:RELEASE_TAG"
+           $Env:WHEEL_EXT_NAME="_adreno_cpu_accl_$Env:RELEASE_TAG"
            cd python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
@@ -323,17 +326,102 @@ jobs:
            cd 3rdparty/tvm/python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
-           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-accl-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-$Env:RELEASE_TAG $i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
-           Copy-Item -Path .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86-accl-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  BuildPackageLinuxNoACCL:  
+  BuildPackageWindowsCLML:
+    needs: [BuildPackageLinux]
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: mlc-windows
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          # submodules: 'recursive'
+          ref: ''
+      - name: Sync Sub modules
+        shell: powershell
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Compile MLC
+        shell: powershell
+        run: |
+           $RELEASE_TAG = Get-Content -path adreno_version
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./build"
+           cd build
+           echo $Env:PATH
+           Add-Content config.cmake "set(TVM_HOME 3rdparty/tvm)"
+           Add-Content config.cmake "set(CMAKE_BUILD_TYPE RelWithDebInfo)"
+           Add-Content config.cmake "set(USE_CUDA OFF)"
+           Add-Content config.cmake "set(USE_CUTLASS OFF)"
+           Add-Content config.cmake "set(USE_CUBLAS OFF)"
+           Add-Content config.cmake "set(USE_ROCM OFF)"
+           Add-Content config.cmake "set(USE_VULKAN OFF)"
+           Add-Content config.cmake "set(USE_METAL OFF)"
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
+           Add-Content config.cmake "set(USE_FLASHINFER OFF)"
+           Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_X86)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-x86-clml-${RELEASE_TAG}" --config Release
+           Compress-Archive -Path mlc_llm-utils-win-x86-clml-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-clml-${RELEASE_TAG}.zip -Force
+           Pop-Location
+      - name: Compile TVM
+        shell: powershell
+        run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
+           cd 3rdparty/tvm/build/;
+           cp ../cmake/config.cmake .
+           Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
+           Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_X86)"
+           cmake .. -G "Visual Studio 17 2022" -A x64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
+      - name: Check Build Status and Build Models
+        shell: powershell
+        run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
+           $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} "CLML"
+      - name: Build Package and Publish
+        shell: powershell
+        run: |
+           $Env:RELEASE_TAG=Get-Content -path adreno_version
+           Push-Location
+           $Env:WHEEL_EXT_NAME="_adreno_cpu_clml_$Env:RELEASE_TAG"
+           cd python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           Push-Location
+           cd 3rdparty/tvm/python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-clml-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
+           foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-$Env:RELEASE_TAG $i --clobber --repo $Env:RELEASE_REPO}
+           # Copy to common Linux CI
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86-clml-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
+        env:
+           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  BuildPackageLinux:  
     needs: [BuildPackageLinux]
     if: github.repository == 'gpgpu/mlc-llm'
     runs-on: mlc-linux-ci
@@ -365,7 +453,7 @@ jobs:
            bash ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_cpu_no_accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_cpu_"${RELEASE_TAG} \
                conda run -n py312 ./ci/task/build_wheel.sh
            mkdir -p release
            cp wheels/*.whl release/
@@ -385,7 +473,7 @@ jobs:
            bash ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cuda-12.1 \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_cuda_no_accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_cuda_"${RELEASE_TAG} \
                conda run -n py312 ./ci/task/build_wheel.sh
            mkdir -p release
            cp wheels/*.whl release/
@@ -406,7 +494,7 @@ jobs:
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_mlc_cpu_no_accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cpu_"${RELEASE_TAG} \
                conda run -n py312 ./ci/adreno/build_wheel.sh
            mkdir -p ../../release
            cp wheels/*.whl ../../release/
@@ -428,7 +516,7 @@ jobs:
            bash ../../ci/bash.sh mlcaidev/package-cu121 \
                -e GPU cuda-12.1 \
                -e MLC_CI_SETUP_DEPS 1 -j `nproc` \
-               -e WHEEL_EXT_NAME "_adreno_mlc_cuda_no_accl_"${RELEASE_TAG} \
+               -e WHEEL_EXT_NAME "_adreno_mlc_cuda_"${RELEASE_TAG} \
                conda run -n py312 ./ci/adreno/build_wheel.sh
            mkdir -p ../../release
            cp wheels/*.whl ../../release/
@@ -463,11 +551,11 @@ jobs:
                  -DCMAKE_CXX_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ \
                  -DCMAKE_C_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang \
                  -DMACHINE_NAME="aarch64-linux-gnu" \
-                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64-no-accl-${RELEASE_TAG} ..
+                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64-${RELEASE_TAG} ..
            cmake --build . --parallel $(nproc) --target install
-           rm -rf `find mlc_llm-utils-linux-arm64-no-accl-${RELEASE_TAG} -name "*.a"`
-           tar jcvfp mlc_llm-utils-linux-arm64-no-accl-${RELEASE_TAG}.tar.bz2 mlc_llm-utils-linux-arm64-no-accl-${RELEASE_TAG}
-           mv mlc_llm-utils-linux-arm64-no-accl-${RELEASE_TAG}.tar.bz2 ../release
+           rm -rf `find mlc_llm-utils-linux-arm64-${RELEASE_TAG} -name "*.a"`
+           tar jcvfp mlc_llm-utils-linux-arm64-${RELEASE_TAG}.tar.bz2 mlc_llm-utils-linux-arm64-${RELEASE_TAG}
+           mv mlc_llm-utils-linux-arm64-${RELEASE_TAG}.tar.bz2 ../release
            cd ..
       - name: Test Artifacts
         shell: bash -l {0}
@@ -497,7 +585,7 @@ jobs:
            mkdir -p ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}
            cp release/* ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}/ -rfa
            rm -rf release
-  BuildPackageWindowsNoACCL:
+  BuildPackageWindows:
     needs: [BuildPackageLinuxNoACCL]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
@@ -532,8 +620,8 @@ jobs:
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
-           cmake --install . --prefix ".\mlc_llm-utils-win-x86-no-accl-${RELEASE_TAG}" --config Release
-           Compress-Archive -Path mlc_llm-utils-win-x86-no-accl-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-no-accl-${RELEASE_TAG}.zip -Force
+           cmake --install . --prefix ".\mlc_llm-utils-win-x86-${RELEASE_TAG}" --config Release
+           Compress-Archive -Path mlc_llm-utils-win-x86-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-${RELEASE_TAG}.zip -Force
            Pop-Location
       - name: Compile TVM
         shell: powershell
@@ -548,18 +636,19 @@ jobs:
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            Pop-Location
-      - name: Check Build Status
+      - name: Check Build Status and Build Models
         shell: powershell
         run: |
            $RELEASE_TAG=Get-Content -path adreno_version
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
            python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
       - name: Build Package and Publish
         shell: powershell
         run: |
            $Env:RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
-           $Env:WHEEL_EXT_NAME="_adreno_cpu_no_accl_$Env:RELEASE_TAG"
+           $Env:WHEEL_EXT_NAME="_adreno_cpu_$Env:RELEASE_TAG"
            cd python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
@@ -567,11 +656,11 @@ jobs:
            cd 3rdparty/tvm/python
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
-           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-no-accl-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
-           Copy-Item -Path .\build\mlc_llm-utils-win-x86-no-accl-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            rm .\python\build -r -Force -ErrorAction Ignore

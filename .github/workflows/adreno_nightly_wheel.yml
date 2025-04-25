@@ -198,7 +198,7 @@ jobs:
            export PATH=$CUDA_PATH/bin:$PATH
            python -c "import mlc_llm; print(mlc_llm.__path__)"
            python -c "import tvm; print(tvm.__path__)"
-           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_NIGHTLY_ARTIFACTS
+           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_NIGHTLY_ARTIFACTS "ACCL"
       - name: Publish Artifacts
         shell: bash -l {0}
         run: |
@@ -246,6 +246,8 @@ jobs:
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_X86)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
+           Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_X86)"
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-x86" --config Release
@@ -262,6 +264,8 @@ jobs:
            Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_X86)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
+           Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_X86)"
+           Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_X86)"
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            Pop-Location
@@ -270,7 +274,7 @@ jobs:
         run: |
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_NIGHTLY_ARTIFACTS
+           ci/task/build_adreno_models_win_nightly.ps1 $Env:CI_LLM_NIGHTLY_ARTIFACTS "ACCL" "CLML"
       - name: Build Package and Publish
         shell: powershell
         run: |

@@ -5,10 +5,17 @@ $MODEL_ARTIFACTS_PATH = $args[0]
 
 New-Item -ItemType Directory -Path "./dist/libs" -Force
 
-$ACCL = 1
+$ACCL = 0
 ForEach ($arg in $args){
-  if ($arg -eq "NOACCL") {
-    $ACCL = 0
+  if ($arg -eq "ACCL") {
+    $ACCL = 1
+  }
+}
+
+$CLML = 0
+ForEach ($arg in $args){
+  if ($arg -eq "CLML") {
+    $CLML = 1
   }
 }
 
@@ -30,6 +37,13 @@ function build-model {
       # Compile the model for Adreno with acceleration
       $global:LASTEXITCODE = 0
       Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt adrenoaccl=1 -o ./dist/libs/${model}-${quantization}-adreno-accl.dll"
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    if ( $CLML -eq "1") {
+      # Compile the model for Adreno with acceleration
+      $global:LASTEXITCODE = 0
+      Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt openclml=1 -o ./dist/libs/${model}-${quantization}-adreno-clml.dll"
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 }

@@ -11,9 +11,9 @@ fi
 # Artifacts folder
 mkdir ${MODEL_ARTIFACTS_PATH}/dist/libs -p
 
-ACCL=1
-if [ "$3" == "NOACCL" ] || [ "$2" == "NOACCL" ] ; then
-  ACCL=0
+ACCL=0
+if [ "$3" == "ACCL" ] || [ "$2" == "ACCL" ] ; then
+  ACCL=1
 fi
 
 build_model() {
