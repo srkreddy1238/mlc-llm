@@ -64,5 +64,6 @@ build-model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-wi
 build-model DeepSeek-R1-Distill-Qwen-1.5B q4f16_0 deepseek_r1_qwen "--prefill-chunk-size 256 --context-window-size 4096"
 build-model DeepSeek-R1-Distill-Llama-8B q4f16_0 deepseek_r1_llama "--prefill-chunk-size 256 --context-window-size 4096"
 #build-model DeepSeek-R1-Distill-Qwen-7B q4f16_0 deepseek_r1_qwen "--prefill-chunk-size 256 --context-window-size 4096"
-
+Write-Output "compile done"
 Copy-Item -Path "./dist/libs/*" -Destination "$MODEL_ARTIFACTS_PATH/dist/libs"
+Write-Output "copy done"
