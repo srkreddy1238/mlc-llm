@@ -87,8 +87,8 @@ int ChatState::chat(std::string prompt, int max_tokens) {
   // Get the prompt message
   if (!prompt.empty()) {
     int ret = generate(prompt, max_tokens);
-    __json_wrapper->background_loops->terminate();
     this->__json_wrapper->engine_state->getStats();
+    __json_wrapper->background_loops->terminate();
     return ret;
   }
   std::string cin_prompt;

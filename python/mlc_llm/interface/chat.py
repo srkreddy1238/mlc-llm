@@ -272,6 +272,7 @@ class ChatState:
             elif prompt[:6] == "/reset":
                 self.reset()
             elif prompt[:5] == "/exit":
+                self.engine.terminate()
                 break
             elif prompt[:5] == "/help":
                 _print_help_str()
