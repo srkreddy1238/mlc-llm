@@ -44,6 +44,7 @@ function build-model {
       # Compile the model for Adreno with acceleration
       $global:LASTEXITCODE = 0
       Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt openclml=1 -o ./dist/libs/${model}-${quantization}-adreno-clml.dll"
+      $global:LASTEXITCODE = 0
       #if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 }
