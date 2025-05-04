@@ -185,7 +185,6 @@ class ThreadedEngineImpl : public ThreadedEngine {
         background_engine_->Step();
       }
     }
-    std::terminate();
   }
 
   void RunBackgroundStreamBackLoop() final {
@@ -218,7 +217,6 @@ class ThreadedEngineImpl : public ThreadedEngine {
       }
       flattened_callback_inputs.clear();
     }
-    std::terminate();
   }
 
   void ExitBackgroundLoop() final {
