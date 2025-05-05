@@ -31,7 +31,7 @@ jobs:
     runs-on: mlc-linux-ci    
     steps:
       - name: Authenticate
-        if: github.actor != 'sivb'
+        if: github.actor != 'kvegiraj'
         shell: bash -l {0}
         run: |
           echo "Not authorized to run this workflow - contact <sivb@qti.qualcomm.com>"
