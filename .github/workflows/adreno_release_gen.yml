@@ -222,9 +222,9 @@ jobs:
            python -c "import tvm; print(tvm.__path__)"
            mkdir -p $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG}
            sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} "ACCL"
-           python ci/task/benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-v004 --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device-v3` --with-accl 1
-           python ci/task/benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-v004 --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device` --with-accl 1
-           python ci/task/benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-v004 --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device-v5`
+           python ci/task/benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG} --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device-v3` --with-accl 1
+           python ci/task/benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG} --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device` --with-accl 1
+           python ci/task/benchmark_adreno_android.py --bin build-arm64/mlc_llm-utils-linux-arm64-accl-${RELEASE_TAG} --model $CI_LLM_RELEASE_ARTIFACTS/${RELEASE_TAG} --device `cat /etc/mlc-device-v5`
            mv *.csv release/.
       - name: Publish Artifacts
         shell: bash -l {0}
