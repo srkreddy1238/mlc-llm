@@ -570,8 +570,8 @@ jobs:
                attrs git-lfs gcc=10.4 gxx=10.4 python=3.12
            conda activate mlc-ci
            conda env list
-           pip install release/mlc_llm_adreno_cpu_no_accl*.whl
-           pip install release/tvm_adreno_mlc_cpu_no_accl*.whl
+           pip install release/mlc_llm_adreno_cpu_*.whl
+           pip install release/tvm_adreno_mlc_cpu_*.whl
            export LD_LIBRARY_PATH=$CUDA_PATH/lib64/
            export PATH=$CUDA_PATH/bin:$PATH
            python -c "import mlc_llm; print(mlc_llm.__path__)"
