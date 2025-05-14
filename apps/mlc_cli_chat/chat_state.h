@@ -24,7 +24,7 @@ class ChatState {
   std::vector<Message> get_current_history_window();
   int generate(const std::string& prompt, int max_tokens = -1);
   void reset();
-  int chat(std::string prompt = "", int max_tokens = -1);
+  int chat(std::string prompt = "", int max_tokens = -1, int repeat = 1);
 };
 
 #endif

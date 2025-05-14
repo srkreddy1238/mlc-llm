@@ -18,6 +18,7 @@ test_model() {
         ./bin/mlc_cli_chat \
         --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
         --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno.so \
+        --max-tokens 100 \
         --device opencl \
         --with-prompt \"write a poem about moon in 100 words\""
 
@@ -26,6 +27,7 @@ test_model() {
         ./bin/mlc_cli_chat \
         --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
         --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-accl.so \
+        --max-tokens 100 \
         --device opencl \
         --with-prompt \"write a poem about moon in 100 words\""
 }
@@ -45,7 +47,9 @@ MODELS="Llama-2-7b-chat-hf \
        Phi-3.5-mini-instruct \
        llava-1.5-7b-hf \
        DeepSeek-R1-Distill-Qwen-1.5B \
-       DeepSeek-R1-Distill-Llama-8B"
+       DeepSeek-R1-Distill-Llama-8B \
+       Qwen2.5-1.5B-Instruct \
+       Qwen2.5-0.5B-Instruct"
 #       Baichuan-7B"
 
 for i in ${MODELS}

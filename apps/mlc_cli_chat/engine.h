@@ -95,6 +95,7 @@ class JSONFFIEngineWrapper {
 
   JSONFFIEngineWrapper(std::string model_path, std::string model_lib_path, std::string mode,
                        std::string device, int device_id);
+  void Reset();
 };
 
 #endif

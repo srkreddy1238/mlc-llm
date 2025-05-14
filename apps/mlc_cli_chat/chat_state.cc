@@ -6,6 +6,7 @@
 #include "chat_state.h"
 
 #include <iostream>
+#include <string>
 
 #include "base.h"
 #include "engine.h"
@@ -14,6 +15,7 @@ void print_help_str() {
   std::string help_string = R"("""You can use the following special commands:
   /help               print the special commands
   /exit               quit the cli
+  /reset              reset the history
   /stats              print out stats of last request (token/sec)
   Multi-line input: Use escape+enter to start a new line.
 """)";
@@ -80,14 +82,19 @@ int ChatState::generate(const std::string& prompt, int max_tokens) {
 void ChatState::reset() {
   history.clear();
   history_window_begin = 0;
+  this->__json_wrapper->Reset();
 }
 
-int ChatState::chat(std::string prompt, int max_tokens) {
+int ChatState::chat(std::string prompt, int max_tokens, int repeat) {
   print_help_str();
   // Get the prompt message
   if (!prompt.empty()) {
-    int ret = generate(prompt, max_tokens);
-    this->__json_wrapper->engine_state->getStats();
+    int ret = 0;
+    for (int i = 0; i < repeat; i++) {
+      ret = generate(prompt, max_tokens);
+      this->__json_wrapper->engine_state->getStats();
+      reset();
+    }
     __json_wrapper->background_loops->terminate();
     return ret;
   }
@@ -100,6 +107,8 @@ int ChatState::chat(std::string prompt, int max_tokens) {
       break;
     } else if (cin_prompt == "/help") {
       print_help_str();
+    } else if (cin_prompt == "/reset") {
+      reset();
     } else if (cin_prompt == "/stats") {
       this->__json_wrapper->engine_state->getStats();
     } else {

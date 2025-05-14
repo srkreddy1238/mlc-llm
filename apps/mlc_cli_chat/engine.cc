@@ -368,3 +368,5 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
 
   chat = Chat(engine_state, mod);
 }
+
+void JSONFFIEngineWrapper::Reset() { mod.GetFunction("reset")(); }
