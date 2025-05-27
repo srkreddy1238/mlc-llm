@@ -269,6 +269,31 @@ jobs:
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            Pop-Location
+      - name: Compile MLC for Arm64
+        shell: powershell
+        run: |
+           Push-Location
+           New-Item -ItemType Directory -Force -Path "./build-arm64"
+           cd build-arm64
+           echo $Env:PATH
+           Add-Content config.cmake "set(TVM_HOME 3rdparty/tvm)"
+           Add-Content config.cmake "set(CMAKE_BUILD_TYPE RelWithDebInfo)"
+           Add-Content config.cmake "set(USE_CUDA OFF)"
+           Add-Content config.cmake "set(USE_CUTLASS OFF)"
+           Add-Content config.cmake "set(USE_CUBLAS OFF)"
+           Add-Content config.cmake "set(USE_ROCM OFF)"
+           Add-Content config.cmake "set(USE_VULKAN OFF)"
+           Add-Content config.cmake "set(USE_METAL OFF)"
+           Add-Content config.cmake "set(USE_OPENCL ON)"
+           Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
+           Add-Content config.cmake "set(USE_FLASHINFER OFF)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_ARM64)"
+           Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_ARM64)"
+           Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_ARM64)"
+           Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_ARM64)"
+           cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
+           cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           Pop-Location
       - name: Check Build Status and Build Models
         shell: powershell
         run: |
