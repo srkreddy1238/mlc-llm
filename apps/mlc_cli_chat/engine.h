@@ -1,6 +1,6 @@
 /*!
  *  Copyright (c) 2023 by Contributors
- * \file engine.h
+ * \file .engine.h
  */
 
 #ifndef MLC_CLI_CHAT_ENGINE_H

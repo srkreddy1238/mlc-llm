@@ -306,6 +306,9 @@ def _build_default():
             system_lib=system_lib,
         ).export_library(
             str(output),
+            options=[
+                "--target=" + args.target.host.attrs["mtriple"],
+            ],
         )
 
     return build
@@ -472,6 +475,17 @@ PRESET = {
             "host": {
                 "kind": "llvm",
                 "mtriple": "x86_64-pc-windows-msvc",
+            },
+        },
+    },
+    "windows:adreno_arm64": {
+        "target": {
+            "kind": "opencl",
+            "device": "adreno",
+            "max_threads_per_block": 512,
+            "host": {
+                "kind": "llvm",
+                "mtriple": "aarch64-pc-windows-msvc",
             },
         },
     },

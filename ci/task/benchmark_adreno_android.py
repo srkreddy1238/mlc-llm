@@ -12,7 +12,7 @@ parser.add_argument("--device", type=str, help="andoid device id")
 parser.add_argument("--with-accl", type=bool, default=False)
 args = parser.parse_args()
 
-
+# MLC GenAI supported models
 MODELS = [
     "Llama-2-7b-chat-hf",
     "Meta-Llama-3-8B-Instruct",
@@ -129,12 +129,6 @@ for model in MODELS:
     prompt = Prompt256[model]
     run_model(prompt, model, 256)
     time.sleep(60)
-    # prompt = Prompt256[model][:-2] + Prompt256[model][2:]
-    # run_model(prompt, model, 512)
-    # time.sleep(10)
-    # prompt = Prompt256[model][:-2] + Prompt256[model][2:-2] + Prompt256[model][2:-2] + Prompt256[model][2:]
-    # run_model(prompt, model, 1024)
-    # time.sleep(20)
 
 df = pd.DataFrame(data=out_table)
 df.to_csv("mlc_llm_perf_"+args.device+".csv")
