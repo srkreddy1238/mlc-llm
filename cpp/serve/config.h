@@ -230,7 +230,7 @@ enum class PrefillMode : int {
 class InferrableEngineConfig;
 
 /*! \brief The configuration of engine execution config. */
-class MLC_LLM_DLL EngineConfigNode : public Object {
+class EngineConfigNode : public Object {
  public:
   /*************** Models ***************/
 
@@ -307,7 +307,7 @@ class MLC_LLM_DLL EngineConfigNode : public Object {
   /*************** Debug ***************/
   bool verbose = false;
 
-  String AsJSONString() const;
+  MLC_LLM_DLL String AsJSONString() const;
 
   static void RegisterReflection() {
     namespace refl = tvm::ffi::reflection;
@@ -320,7 +320,7 @@ class MLC_LLM_DLL EngineConfigNode : public Object {
   TVM_FFI_DECLARE_OBJECT_INFO("mlc.serve.EngineConfig", EngineConfigNode, Object);
 };
 
-class MLC_LLM_DLL EngineConfig : public ObjectRef {
+class EngineConfig : public ObjectRef {
  public:
   /*! \brief Create EngineConfig from JSON object and inferred config. */
   static EngineConfig FromJSONAndInferredConfig(const tvm::ffi::json::Object& json,
