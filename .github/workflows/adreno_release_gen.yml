@@ -362,7 +362,7 @@ jobs:
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   BuildPackageWindowsCLML:
-    needs: [BuildPackageLinuxACCL]
+    needs: [BuildPackageWindowsACCL]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
@@ -634,7 +634,7 @@ jobs:
            cp release/* ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}/ -rfa
            rm -rf release
   BuildPackageWindows:
-    needs: [BuildPackageLinux]
+    needs: [BuildPackageWindowsCLML]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
