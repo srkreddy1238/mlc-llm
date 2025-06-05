@@ -357,13 +357,13 @@ jobs:
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
            gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-accl-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
-           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-arm64-accl-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build-arm64\mlc_llm-utils-win-arm64-accl-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-$Env:RELEASE_TAG $i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
            Copy-Item -Path .\build\mlc_llm-utils-win-x86-accl-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
-           Copy-Item -Path .\build\mlc_llm-utils-win-arm64-accl-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build-arm64\mlc_llm-utils-win-arm64-accl-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
         env:
@@ -469,13 +469,13 @@ jobs:
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
            gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-clml-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
-           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-arm64-clml-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build-arm64\mlc_llm-utils-win-arm64-clml-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-$Env:RELEASE_TAG $i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
            Copy-Item -Path .\build\mlc_llm-utils-win-x86-clml-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
-           Copy-Item -Path .\build\mlc_llm-utils-win-arm64-clml-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build-arm64\mlc_llm-utils-win-arm64-clml-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
         env:
@@ -739,12 +739,12 @@ jobs:
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
            gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
-           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-arm64-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build-arm64\mlc_llm-utils-win-arm64-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
            Copy-Item -Path .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
-           Copy-Item -Path .\build\mlc_llm-utils-win-arm64-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build-arm64\mlc_llm-utils-win-arm64-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            rm .\python\build -r -Force -ErrorAction Ignore
