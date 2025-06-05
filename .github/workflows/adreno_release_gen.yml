@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: mlcrelease
+  group: mlc
   cancel-in-progress: true
 
 jobs:
@@ -49,7 +49,7 @@ jobs:
         shell: bash -l {0}
         run: |
           set -e
-          RELEASE_TAG=`cat adreno_version`
+          _TAG=`cat adreno_version`
           wget https://github.qualcomm.com/gpgpu/adreno-ai-release/releases/download/adrenoaccl-release-${RELEASE_TAG}/AdrenoAcCL-Linux-Arm64-${RELEASE_TAG}.tar.bz2
           tar -xvf AdrenoAcCL-Linux-Arm64-${RELEASE_TAG}.tar.bz2
       - name: Build MLC CPU Host Wheel
@@ -292,8 +292,6 @@ jobs:
       - name: Compile TVM
         shell: powershell
         run: |
-           $RELEASE_TAG=Get-Content -path adreno_version
-           $Env:ADRENOACCL_SDK_ARM64="$pwd\AdrenoAcCL-win-Arm64-${RELEASE_TAG}".Replace('\', '\\')
            Push-Location
            New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
            cd 3rdparty/tvm/build/;
@@ -308,6 +306,8 @@ jobs:
       - name: Compile MLC for Arm64
         shell: powershell
         run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
+           $Env:ADRENOACCL_SDK_ARM64="$pwd\AdrenoAcCL-win-Arm64-${RELEASE_TAG}".Replace('\', '\\')
            Push-Location
            New-Item -ItemType Directory -Force -Path "./build-arm64"
            cd build-arm64
@@ -406,7 +406,6 @@ jobs:
       - name: Compile TVM
         shell: powershell
         run: |
-           $RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
            New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
            cd 3rdparty/tvm/build/;
@@ -421,6 +420,7 @@ jobs:
       - name: Compile MLC for Arm64
         shell: powershell
         run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
            New-Item -ItemType Directory -Force -Path "./build-arm64"
            cd build-arm64
@@ -680,7 +680,6 @@ jobs:
       - name: Compile TVM
         shell: powershell
         run: |
-           $RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
            New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
            cd 3rdparty/tvm/build/;
@@ -693,6 +692,7 @@ jobs:
       - name: Compile MLC for Arm64
         shell: powershell
         run: |
+           $RELEASE_TAG=Get-Content -path adreno_version
            Push-Location
            New-Item -ItemType Directory -Force -Path "./build-arm64"
            cd build-arm64
