@@ -264,6 +264,8 @@ jobs:
           $RELEASE_TAG = Get-Content -path adreno_version
           Invoke-WebRequest -Uri https://github.qualcomm.com/gpgpu/adreno-ai-release/releases/download/adrenoaccl-release-${RELEASE_TAG}/AdrenoAcCL-win-x86-${RELEASE_TAG}.zip -OutFile AdrenoAcCL-win-x86-${RELEASE_TAG}.zip
           Expand-Archive -LiteralPath .\AdrenoAcCL-win-x86-${RELEASE_TAG}.zip -DestinationPath .\AdrenoAcCL-win-x86-${RELEASE_TAG}\
+          Invoke-WebRequest -Uri https://github.qualcomm.com/gpgpu/adreno-ai-release/releases/download/adrenoaccl-release-${RELEASE_TAG}/AdrenoAcCL-win-Arm64-${RELEASE_TAG}.zip -OutFile AdrenoAcCL-win-Arm64-${RELEASE_TAG}.zip
+          Expand-Archive -LiteralPath .\AdrenoAcCL-win-Arm64-${RELEASE_TAG}.zip -DestinationPath .\AdrenoAcCL-win-Arm64-${RELEASE_TAG}\
       - name: Compile MLC
         shell: powershell
         run: |
@@ -296,7 +298,7 @@ jobs:
         shell: powershell
         run: |
            $RELEASE_TAG=Get-Content -path adreno_version
-           $Env:ADRENOACCL_SDK_X86="$pwd\AdrenoAcCL-win-x86-${RELEASE_TAG}".Replace('\', '\\')
+           $Env:ADRENOACCL_SDK_ARM64="$pwd\AdrenoAcCL-win-Arm64-${RELEASE_TAG}".Replace('\', '\\')
            Push-Location
            New-Item -ItemType Directory -Force -Path "./3rdparty/tvm/build"
            cd 3rdparty/tvm/build/;
@@ -330,6 +332,9 @@ jobs:
            Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_ARM64)"
            cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-arm64-accl-${RELEASE_TAG}" --config Release
+           Copy-Item -Path $Env:ADRENOACCL_SDK_ARM64\bin\* -Destination "./mlc_llm-utils-win-arm64-accl-${RELEASE_TAG}/bin/"
+           Compress-Archive -Path mlc_llm-utils-win-arm64-accl-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-accl-${RELEASE_TAG}.zip -Force
            Pop-Location
       - name: Check Build Status and Build Models
         shell: powershell
@@ -352,11 +357,13 @@ jobs:
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
            gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-accl-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-arm64-accl-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-$Env:RELEASE_TAG $i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
            Copy-Item -Path .\build\mlc_llm-utils-win-x86-accl-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build\mlc_llm-utils-win-arm64-accl-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
         env:
@@ -438,6 +445,8 @@ jobs:
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_ARM64)"
            cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-arm64-clml-${RELEASE_TAG}" --config Release
+           Compress-Archive -Path mlc_llm-utils-win-arm64-clml-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-clml-${RELEASE_TAG}.zip -Force
            Pop-Location
       - name: Check Build Status and Build Models
         shell: powershell
@@ -460,11 +469,13 @@ jobs:
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
            gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-clml-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-arm64-clml-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path dist/libs/*.dll) {gh release upload llm-release-artifacts-$Env:RELEASE_TAG $i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
            Copy-Item -Path .\build\mlc_llm-utils-win-x86-clml-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build\mlc_llm-utils-win-arm64-clml-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
         env:
@@ -704,6 +715,8 @@ jobs:
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
            cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-arm64-${RELEASE_TAG}" --config Release
+           Compress-Archive -Path mlc_llm-utils-win-arm64-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-${RELEASE_TAG}.zip -Force
            Pop-Location
       - name: Check Build Status and Build Models
         shell: powershell
@@ -726,10 +739,12 @@ jobs:
            python.exe .\setup.py bdist_wheel --plat-name win_amd64
            Pop-Location
            gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
+           gh release upload mlc-release-$Env:RELEASE_TAG .\build\mlc_llm-utils-win-arm64-$Env:RELEASE_TAG.zip --clobber --repo $Env:RELEASE_REPO
            foreach ($i in Get-ChildItem -Path python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {gh release upload mlc-release-$Env:RELEASE_TAG .\3rdparty\tvm\python\dist\$i --clobber --repo $Env:RELEASE_REPO}
            # Copy to common Linux CI
            Copy-Item -Path .\build\mlc_llm-utils-win-x86-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
+           Copy-Item -Path .\build\mlc_llm-utils-win-arm64-$Env:RELEASE_TAG.zip -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"
            foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
            rm .\python\build -r -Force -ErrorAction Ignore
