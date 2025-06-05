@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: mlc
+  group: mlcrelease
   cancel-in-progress: true
 
 jobs:
@@ -49,7 +49,7 @@ jobs:
         shell: bash -l {0}
         run: |
           set -e
-          _TAG=`cat adreno_version`
+          RELEASE_TAG=`cat adreno_version`
           wget https://github.qualcomm.com/gpgpu/adreno-ai-release/releases/download/adrenoaccl-release-${RELEASE_TAG}/AdrenoAcCL-Linux-Arm64-${RELEASE_TAG}.tar.bz2
           tar -xvf AdrenoAcCL-Linux-Arm64-${RELEASE_TAG}.tar.bz2
       - name: Build MLC CPU Host Wheel
