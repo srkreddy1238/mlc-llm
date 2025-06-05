@@ -232,7 +232,6 @@ jobs:
            gh release create mlc-release-${RELEASE_TAG} --latest --title mlc-release-${RELEASE_TAG} --repo "$RELEASE_REPO" --notes "MLC Release builds"
            gh release upload mlc-release-${RELEASE_TAG} release/*.whl --clobber --repo "$RELEASE_REPO"
            gh release upload mlc-release-${RELEASE_TAG} release/*.tar.bz2 --clobber --repo "$RELEASE_REPO"
-           gh release upload mlc-release-${RELEASE_TAG} release/*.csv --clobber --repo "$RELEASE_REPO"
            mkdir -p ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}
            cp release/* ${CI_PACKAGE_REPO_RELEASE}/${RELEASE_TAG}/ -rfa
            rm -rf release
