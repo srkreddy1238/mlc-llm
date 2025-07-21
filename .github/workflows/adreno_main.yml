@@ -116,7 +116,8 @@ jobs:
            export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
            export PATH=$CUDA_PATH/bin:$PATH
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY "ACCL"
+           mkdir -p $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
+           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID "ACCL"
       - name: Build CLI and Test on Target
         shell: bash -l {0}
         run: |
@@ -150,8 +151,9 @@ jobs:
            rm -rf `find mlc_llm-utils-linux-arm64 -name "*.a"`
            cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64/lib/ -rfa
            cd ..
-           sh ci/task/test_adreno_models.sh `cat /etc/mlc-device`
+           sh ci/task/test_adreno_models.sh `cat /etc/mlc-device` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
   MLC-Build-Windows:
+    needs: [MLC-Build-Linux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
@@ -189,6 +191,10 @@ jobs:
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_X86)"
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-x86-target" --config Release
+           Copy-Item -Path $Env:ADRENOACCL_SDK_X86\bin\* -Destination "./mlc_llm-utils-win-x86-target/bin/"
+           Compress-Archive -Path mlc_llm-utils-win-x86-target/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-target.zip -Force
+           Copy-Item -Path mlc_llm-utils-win-x86-target.zip -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/"
            Pop-Location
       - name: Compile TVM
         shell: powershell
@@ -230,6 +236,10 @@ jobs:
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_ARM64)"
            cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
+           cmake --install . --prefix ".\mlc_llm-utils-win-arm64-target" --config Release
+           Copy-Item -Path $Env:ADRENOACCL_SDK_ARM64\bin\* -Destination "./mlc_llm-utils-win-arm64-target/bin/"
+           Compress-Archive -Path mlc_llm-utils-win-arm64-target/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-target.zip -Force
+           Copy-Item -Path mlc_llm-utils-win-arm64-target.zip -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/"
            Pop-Location
       - name: Check Build Status
         shell: powershell
@@ -241,4 +251,63 @@ jobs:
         run: |
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY "ACCL" "CLML"
+           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID" "ACCL" "CLML"
+      - name: Build Package and Upload for Device Tests
+        shell: powershell
+        run: |
+           Push-Location
+           $Env:WHEEL_EXT_NAME="_adreno_target"
+           cd python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           Push-Location
+           cd 3rdparty/tvm/python
+           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           Pop-Location
+           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID"}
+  HamoaDeviceTestDELL:
+    needs: [MLC-Build-Windows]
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: hamoa-dell-01
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          #submodules: 'recursive'
+          ref: ''
+          fetch-depth: 0
+      - name: Sync Sub modules
+        shell: powershell
+        run: |
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+      - name: Install MLC & TVM
+        shell: powershell
+        run: |
+           C:\ProgramData\anaconda3\shell\condabin\conda-hook.ps1
+           conda activate mlc-device-test
+           pip list
+           pip uninstall tvm_adreno_target -y
+           pip uninstall mlc_adreno_target -y
+           pip list
+           foreach ($i in Get-ChildItem -Path "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/*.whl" ) {pip install $i}
+           pip list
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+      - name: Tests
+        shell: powershell
+        run: |
+           C:\ProgramData\anaconda3\shell\condabin\conda-hook.ps1
+           conda activate mlc-device-test
+           pip list
+           python -c "import mlc_llm; print(mlc_llm.__path__)"
+           ci/task/test_adreno_models_win.ps1 "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS\$Env:GITHUB_RUN_ID"
+  Cleanup:
+    needs: [HamoaDeviceTestDELL]
+    if: ${{ github.repository == 'gpgpu/mlc-llm' }}
+    runs-on: mlc-linux-ci
+    steps:
+      - name: Remove Temporary Artifacts
+        shell: bash -l {0}
+        run: |
+           set -e
+           rm -rf $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID

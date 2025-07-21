@@ -2,6 +2,11 @@
 set -e
 
 export ANDROID_SERIAL=$1
+if [ -d "$2" ] ; then
+    export MODEL_ARTIFACTS_PATH=$2
+else
+    export MODEL_ARTIFACTS_PATH="."
+fi
 
 test_model() {
     model=$1
@@ -9,9 +14,9 @@ test_model() {
     adb shell "rm -rf /data/local/tmp/mlc-ci/models"
     adb shell "mkdir -p /data/local/tmp/mlc-ci/models"
 
-    adb push ./dist/${model}-q4f16_0-MLC /data/local/tmp/mlc-ci/models/
-    adb push ./dist/libs/${model}-q4f16_0-adreno.so /data/local/tmp/mlc-ci/models/
-    adb push ./dist/libs/${model}-q4f16_0-adreno-accl.so /data/local/tmp/mlc-ci/models/
+    adb push $MODEL_ARTIFACTS_PATH/dist/${model}-q4f16_0-MLC /data/local/tmp/mlc-ci/models/
+    adb push $MODEL_ARTIFACTS_PATH/dist/libs/${model}-q4f16_0-adreno.so /data/local/tmp/mlc-ci/models/
+    adb push $MODEL_ARTIFACTS_PATH/dist/libs/${model}-q4f16_0-adreno-accl.so /data/local/tmp/mlc-ci/models/
 
     adb shell "cd /data/local/tmp/mlc-ci; \
         LD_LIBRARY_PATH=./lib/ \

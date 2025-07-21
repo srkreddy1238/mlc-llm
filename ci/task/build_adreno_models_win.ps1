@@ -3,7 +3,11 @@ $ErrorActionPreference = "Stop"
 
 # Define the base path for the model files
 $MODEL_LOCAL_BASE = $args[0]
-$MODEL_ARTIFACTS_PATH = "./"
+if (Test-Path -Path $args[1] -PathType Container) {
+    $MODEL_ARTIFACTS_PATH = $args[1]
+} else {
+    $MODEL_ARTIFACTS_PATH = "./"
+}
 
 # Create the artifacts folder
 New-Item -ItemType Directory -Path "${MODEL_ARTIFACTS_PATH}/dist/libs" -Force
@@ -91,4 +95,4 @@ build-model DeepSeek-R1-Distill-Qwen-1.5B q4f16_0 deepseek_r1_qwen "--prefill-ch
 build-model DeepSeek-R1-Distill-Llama-8B q4f16_0 deepseek_r1_llama "--prefill-chunk-size 256 --context-window-size 4096"
 #build-model DeepSeek-R1-Distill-Qwen-7B q4f16_0 deepseek_r1_qwen "--prefill-chunk-size 256 --context-window-size 4096"
 
-Remove-Item -Path "./dist" -Recurse -Force
+#Remove-Item -Path "./dist" -Recurse -Force
