@@ -236,7 +236,7 @@ jobs:
            Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_ARM64)"
            Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_ARM64)"
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_ARM64)"
-           cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
+           cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_SYSTEM_PROCESSOR=ARM64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-arm64-target" --config Release
            Copy-Item -Path $Env:ADRENOACCL_SDK_ARM64\bin\* -Destination "./mlc_llm-utils-win-arm64-target/bin/"
