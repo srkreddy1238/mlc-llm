@@ -50,6 +50,7 @@ jobs:
         shell: bash -l {0}
         run: |
            set -e
+           env
            bash ci/bash.sh mlcaidev/ci-cpu \
                -e GPU cpu \
                -e MLC_CI_SETUP_DEPS 1 -j 1 \
@@ -170,6 +171,7 @@ jobs:
       - name: Compile MLC
         shell: powershell
         run: |
+           Get-ChildItem Env:
            Push-Location
            New-Item -ItemType Directory -Force -Path "./build"
            cd build
@@ -279,6 +281,7 @@ jobs:
       - name: Sync Sub modules
         shell: powershell
         run: |
+          Get-ChildItem Env:
           git submodule sync --recursive
           git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
       - name: Install MLC & TVM
