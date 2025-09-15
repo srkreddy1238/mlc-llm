@@ -18,4 +18,4 @@
 	url = https://github.com/mlc-ai/xgrammar.git
 [submodule "3rdparty/tokenizers-cpp"]
 	path = 3rdparty/tokenizers-cpp
-	url = https://github.com/mlc-ai/tokenizers-cpp.git
+	url = https://github.qualcomm.com/gpgpu/tokenizers-cpp.git

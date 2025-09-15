@@ -325,7 +325,8 @@ jobs:
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_ARM64)"
            Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_ARM64)"
-           cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
+           Add-Content config.cmake "set(CMAKE_SYSTEM_PROCESSOR ARM64)"
+           cmake .. -G "Visual Studio 17 2022" -A ARM64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-arm64-accl-${RELEASE_TAG}" --config Release
            Copy-Item -Path $Env:ADRENOACCL_SDK_ARM64\bin\* -Destination "./mlc_llm-utils-win-arm64-accl-${RELEASE_TAG}/bin/"
@@ -438,7 +439,8 @@ jobs:
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
            Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_ARM64)"
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_ARM64)"
-           cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
+           Add-Content config.cmake "set(CMAKE_SYSTEM_PROCESSOR ARM64)"
+           cmake .. -G "Visual Studio 17 2022" -A ARM64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-arm64-clml-${RELEASE_TAG}" --config Release
            Compress-Archive -Path mlc_llm-utils-win-arm64-clml-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-clml-${RELEASE_TAG}.zip -Force
@@ -708,7 +710,8 @@ jobs:
            Add-Content config.cmake "set(USE_OPENCL ON)"
            Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
-           cmake .. -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_OSX_ARCHITECTURES=arm64
+           Add-Content config.cmake "set(CMAKE_SYSTEM_PROCESSOR ARM64)"
+           cmake .. -G "Visual Studio 17 2022" -A ARM64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-arm64-${RELEASE_TAG}" --config Release
            Compress-Archive -Path mlc_llm-utils-win-arm64-${RELEASE_TAG}/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-${RELEASE_TAG}.zip -Force
