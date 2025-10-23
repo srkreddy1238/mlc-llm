@@ -320,7 +320,7 @@ class EngineConfigNode : public Object {
   TVM_FFI_DECLARE_OBJECT_INFO("mlc.serve.EngineConfig", EngineConfigNode, Object);
 };
 
-MLC_LLM_DLL class EngineConfig : public ObjectRef {
+class EngineConfig : public ObjectRef {
  public:
   /*! \brief Create EngineConfig from JSON object and inferred config. */
   static EngineConfig FromJSONAndInferredConfig(const tvm::ffi::json::Object& json,

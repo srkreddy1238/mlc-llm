@@ -300,10 +300,6 @@ jobs:
       - name: Tests
         shell: powershell
         run: |
-           C:\ProgramData\anaconda3\shell\condabin\conda-hook.ps1
-           conda activate mlc-device-test
-           pip list
-           python -c "import mlc_llm; print(mlc_llm.__path__)"
            ci/task/test_adreno_models_win.ps1 "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS\$Env:GITHUB_RUN_ID"
   Cleanup:
     needs: [HamoaDeviceTestDELL]

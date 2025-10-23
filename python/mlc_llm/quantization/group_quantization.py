@@ -37,6 +37,7 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
     linear_weight_layout: Literal["KN", "NK"]
     quantize_embedding: bool = True
     quantize_final_fc: bool = True
+    quant_embedding_dtype: Literal["int3", "int4", "int8"] = "int4"
 
     num_elem_per_storage: int = 0
     num_storage_per_group: int = 0
@@ -131,11 +132,11 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
                     return GroupQuantizeLinear.from_linear(node, self.config)
                 if isinstance(node, nn.Embedding) and self.config.quantize_embedding:
                     weight_name = f"{name}.weight"
-                    self.quant_map.param_map[weight_name] = [
-                        f"{name}.q_weight",
-                        f"{name}.q_scale",
-                    ]
-                    self.quant_map.map_func[weight_name] = self.config.quantize_weight
+                    self.quant_map.param_map[weight_name] = [f"{name}.q_weight", f"{name}.q_scale"]
+                    self.quant_map.map_func[weight_name] = partial(
+                        self.config.quantize_weight,
+                        quantize_dtype=self.config.quant_embedding_dtype,
+                    )
                     return GroupQuantizeEmbedding.from_embedding(node, self.config)
                 if isinstance(node, MixtralExperts):
                     weight_name = f"{name}.weight"
@@ -157,13 +158,22 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
         weight: te.Tensor,
         scale: te.Tensor,
         axis: int,
+        quantize_dtype: str = "int4",
         out_shape: Optional[List[tir.PrimExpr]] = None,
     ):
-        tir_max_int = tir.const(self.max_int_value, self.model_dtype)
+        _quantize_dtype = DataType(quantize_dtype)
+        storage_dtype = DataType(self.storage_dtype)
+        num_elem_per_storage = storage_dtype.bits // _quantize_dtype.bits
+        if self.group_size % num_elem_per_storage != 0:
+            raise ValueError("Group size should be divisible by numbers of elements per storage")
+        num_storage_per_group = self.group_size // num_elem_per_storage
+        max_int_value = (2 ** (_quantize_dtype.bits - 1)) - 1
+
+        tir_max_int = tir.const(max_int_value, self.model_dtype)
         float_weight = convert_uint_to_float(
             weight,
-            DataType(self.quantize_dtype).bits,
-            self.num_elem_per_storage,
+            DataType(quantize_dtype).bits,
+            num_elem_per_storage,
             self.storage_dtype,
             self.model_dtype,
             axis=axis,
@@ -171,7 +181,7 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
         )
         if out_shape is None:
             out_shape = weight.shape
-            out_shape[axis] *= self.num_elem_per_storage
+            out_shape[axis] *= num_elem_per_storage
         axis = axis if axis >= 0 else len(out_shape) + axis
         return te.compute(
             shape=out_shape,
@@ -186,7 +196,11 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
         )
 
     def quantize_weight(
-        self, weight: Tensor, axis: int = -1, output_transpose: bool = False
+        self,
+        weight: Tensor,
+        axis: int = -1,
+        output_transpose: bool = False,
+        quantize_dtype: str = "int4",
     ) -> List[Tensor]:
         """
         Quantize weight with group quantization
@@ -218,7 +232,9 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
             weight_var = relax.Var("weight", relax.TensorStructInfo(weight.shape, weight.dtype))
             with bb.function(name="main", params=[weight_var]):
                 with bb.dataflow():
-                    lv = bb.emit_te(self._quantize, weight_var, axis, output_transpose)
+                    lv = bb.emit_te(
+                        self._quantize, weight_var, axis, output_transpose, quantize_dtype
+                    )
                     gv = bb.emit_output(lv)  # pylint: disable=invalid-name
                 bb.emit_func_output(gv)
             return bb.finalize()
@@ -239,9 +255,18 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
         weight: te.Tensor,
         axis: int = -1,
         output_transpose: bool = False,
+        quantize_dtype: str = "int4",
     ) -> Tuple[te.Tensor, te.Tensor]:
         """Group quantization for weight tensor, defined in tensor expression."""
-        max_int = tir.const(self.max_int_value, self.model_dtype)
+        _quantize_dtype = DataType(quantize_dtype)
+        storage_dtype = DataType(self.storage_dtype)
+        num_elem_per_storage = storage_dtype.bits // _quantize_dtype.bits
+        if self.group_size % num_elem_per_storage != 0:
+            raise ValueError("Group size should be divisible by numbers of elements per storage")
+        num_storage_per_group = self.group_size // num_elem_per_storage
+        max_int_value = (2 ** (_quantize_dtype.bits - 1)) - 1
+
+        max_int = tir.const(max_int_value, self.model_dtype)
         shape = weight.shape  # pylint: disable=invalid-name
         axis = axis if axis >= 0 else len(shape) + axis
         k = shape[axis]
@@ -288,13 +313,13 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
             ).astype(self.storage_dtype),
         )
         # compute quantized weight per storage
-        num_storage = self.num_storage_per_group * num_group
+        num_storage = num_storage_per_group * num_group
         quantized_weight_shape = (*shape[:axis], num_storage, *shape[axis + 1 :])
         quantized_weight = pack_weight(
             scaled_weight,
             axis=axis,
-            num_elem_per_storage=self.num_elem_per_storage,
-            weight_dtype=self.quantize_dtype,
+            num_elem_per_storage=num_elem_per_storage,
+            weight_dtype=quantize_dtype,
             storage_dtype=self.storage_dtype,
             out_shape=quantized_weight_shape,
         )
@@ -458,10 +483,12 @@ class GroupQuantizeEmbedding(nn.Module):
         self.num = num
         self.dim = dim
         self.config = config
+        quant_embedding_dtype = DataType(config.quant_embedding_dtype)
+        storage_dtype = DataType(config.storage_dtype)
+        num_elem_per_storage = storage_dtype.bits // quant_embedding_dtype.bits
+        num_storage_per_group = config.group_size // num_elem_per_storage
         num_group = tir.ceildiv(dim, config.group_size)
-        self.q_weight = nn.Parameter(
-            (num, config.num_storage_per_group * num_group), config.storage_dtype
-        )
+        self.q_weight = nn.Parameter((num, num_storage_per_group * num_group), config.storage_dtype)
         self.q_scale = nn.Parameter((num, num_group), config.model_dtype)
 
     @staticmethod
@@ -504,6 +531,7 @@ class GroupQuantizeEmbedding(nn.Module):
                 weight,
                 scale,
                 axis=-1,
+                quantize_dtype=self.config.quant_embedding_dtype,
                 out_shape=[
                     (
                         tir.IntImm("int64", self.num)
@@ -542,6 +570,7 @@ class GroupQuantizeEmbedding(nn.Module):
                 weight,
                 scale,
                 axis=-1,
+                quantize_dtype=self.config.quant_embedding_dtype,
                 out_shape=[
                     (
                         tir.IntImm("int64", self.num)

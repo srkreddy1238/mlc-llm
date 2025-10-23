@@ -77,6 +77,18 @@ QUANTIZATION: Dict[str, Quantization] = {
         quantize_embedding=True,
         quantize_final_fc=True,
     ),
+    "q4f16_em8_0": GroupQuantize(
+        name="q4f16_em8_0",
+        kind="group-quant",
+        group_size=32,
+        quantize_dtype="int4",
+        storage_dtype="uint32",
+        model_dtype="float16",
+        linear_weight_layout="KN",
+        quantize_embedding=True,
+        quantize_final_fc=True,
+        quant_embedding_dtype="int8",
+    ),
     "q4f16_1": GroupQuantize(
         name="q4f16_1",
         kind="group-quant",
