@@ -109,16 +109,21 @@ jobs:
            export PYTHONPATH=./python:$PYTHONPATH
            export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
            export PATH=$CUDA_PATH/bin:$PATH
+           # SKBUILD_SKIP_BUILD=1 python3 -m build --wheel --outdir mlc_artefacts
+           python -m pip uninstall apache-tvm-ffi -y
+           python3 -m pip install  -v --target=python ./3rdparty/tvm/3rdparty/tvm-ffi/
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-      - name: Build LLM Models
-        shell: bash -l {0}
-        run: |
-           export PYTHONPATH=./python:$PYTHONPATH
-           export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
-           export PATH=$CUDA_PATH/bin:$PATH
-           python -c "import mlc_llm; print(mlc_llm.__path__)"
-           mkdir -p $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
-           sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID "ACCL"
+      # - name: Build LLM Models
+      #   shell: bash -l {0}
+      #   run: |
+      #      export PYTHONPATH=./python:$PYTHONPATH
+      #      export PYTHONPATH=$PWD/3rdparty/tvm/python:$PYTHONPATH
+      #      export PATH=$CUDA_PATH/bin:$PATH
+      #      python -m pip uninstall apache-tvm-ffi -y
+      #      python3 -m pip install  -v --target=python ./3rdparty/tvm/3rdparty/tvm-ffi/
+      #      python -c "import mlc_llm; print(mlc_llm.__path__)"
+      #      mkdir -p $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
+      #      sh ci/task/build_adreno_models.sh $CI_LLM_INVENTORY $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID "ACCL"
       - name: Build CLI and Test on Target
         shell: bash -l {0}
         run: |
@@ -137,24 +142,30 @@ jobs:
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL_GRAPH_EXECUTOR "${ADRENOACCL_SDK}"\) >> config.cmake
-           cmake -DCMAKE_TOOLCHAIN_FILE=${ANDROID_NDK}/build/cmake/android.toolchain.cmake \
+           cmake -DANDROID_TOOLCHAIN_ROOT=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64 \
+                 -DANDROID_NATIVE_API_LEVEL=28 \
                  -DANDROID_ABI=arm64-v8a \
+                 -DCMAKE_SYSTEM_NAME=Android \
+                 -DCMAKE_ANDROID_ARCH_ABI="arm64-v8a" \
+                 -DCMAKE_SYSROOT="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/" \
                  -DANDROID_PLATFORM=android-28 \
                  -DCMAKE_SYSTEM_VERSION=1 \
                  -DCMAKE_FIND_ROOT_PATH="${ADRENO_OPENCL}:${ADRENOACCL_SDK}" \
                  -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                  -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
-                 -DCMAKE_CXX_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++ \
-                 -DCMAKE_C_COMPILER=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang \
+                 -DCMAKE_CXX_COMPILER="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++" \
+                 -DCMAKE_C_COMPILER="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang" \
                  -DMACHINE_NAME="aarch64-linux-gnu" \
                  -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64 ..
            cmake --build . --parallel $(nproc) --target install
+           cp lib/* mlc_llm-utils-linux-arm64/lib/.
            rm -rf `find mlc_llm-utils-linux-arm64 -name "*.a"`
            cp ${ADRENOACCL_SDK}/lib/* mlc_llm-utils-linux-arm64/lib/ -rfa
+           cp ${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so mlc_llm-utils-linux-arm64/lib/.
            cd ..
-           sh ci/task/test_adreno_models.sh `cat /etc/mlc-device` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
+          #  sh ci/task/test_adreno_models.sh `cat /etc/mlc-device` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
   MLC-Build-Windows:
-    needs: [MLC-Build-Linux]
+    # needs: [MLC-Build-Linux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
     runs-on: mlc-windows
     steps:
@@ -196,6 +207,7 @@ jobs:
            cmake --install . --prefix ".\mlc_llm-utils-win-x86-target" --config Release
            Copy-Item -Path $Env:ADRENOACCL_SDK_X86\bin\* -Destination "./mlc_llm-utils-win-x86-target/bin/"
            Compress-Archive -Path mlc_llm-utils-win-x86-target/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-target.zip -Force
+           New-Item -ItemType Directory -Path "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID" -Force
            Copy-Item -Path mlc_llm-utils-win-x86-target.zip -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/"
            Pop-Location
       - name: Compile TVM
@@ -248,27 +260,31 @@ jobs:
         shell: powershell
         run: |
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -m pip uninstall apache-tvm-ffi -y
+           python3 -m pip install  -v --target=python ./3rdparty/tvm/3rdparty/tvm-ffi/
            python -c "import mlc_llm; print(mlc_llm.__path__)"
       - name: Build LLM Models
         shell: powershell
         run: |
            $env:PYTHONPATH = "$pwd\3rdparty\tvm\python;python"
+           python -m pip uninstall apache-tvm-ffi -y
+           python3 -m pip install  -v --target=python ./3rdparty/tvm/3rdparty/tvm-ffi/
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID" "ACCL" "CLML"
+           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY "ACCL" "CLML"
       - name: Build Package and Upload for Device Tests
         shell: powershell
         run: |
            Push-Location
-           $Env:WHEEL_EXT_NAME="_adreno_target"
-           cd python
-           python.exe .\setup.py bdist_wheel --plat-name win_amd64
+           New-Item -ItemType Directory -Force -Path "./dist"
+           python3 -m build --wheel --outdir ./dist
+           cd 3rdparty/tvm
+           New-Item -ItemType Directory -Force -Path "./dist"
+           python3 -m build --wheel --outdir ./dist
            Pop-Location
-           Push-Location
-           cd 3rdparty/tvm/python
-           python.exe .\setup.py bdist_wheel --plat-name win_amd64
-           Pop-Location
-           foreach ($i in Get-ChildItem -Path python/dist) {Copy-Item -Path .\python\dist\$i -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID"}
-           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/python/dist) {Copy-Item -Path .\3rdparty\tvm\python\dist\$i -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID"}
+           New-Item -ItemType Directory -Path "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/dist/libs" -Force
+           foreach ($i in Get-ChildItem -Path ./dist/libs) {Copy-Item -Path .\dist\libs\$i -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/dist/libs"}
+           foreach ($i in Get-ChildItem -Path ./dist) {Copy-Item -Path .\dist\$i -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID"}
+           foreach ($i in Get-ChildItem -Path 3rdparty/tvm/dist) {Copy-Item -Path .\3rdparty\tvm\dist\$i -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID"}
   HamoaDeviceTestDELL:
     needs: [MLC-Build-Windows]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
@@ -291,8 +307,8 @@ jobs:
            C:\ProgramData\anaconda3\shell\condabin\conda-hook.ps1
            conda activate mlc-device-test
            pip list
-           pip uninstall tvm_adreno_target -y
-           pip uninstall mlc_adreno_target -y
+           pip uninstall tvm -y
+           pip uninstall mlc -y
            pip list
            foreach ($i in Get-ChildItem -Path "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/*.whl" ) {pip install $i}
            pip list

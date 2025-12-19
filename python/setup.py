@@ -68,6 +68,7 @@ def parse_requirements(filename: os.PathLike):
                 deps.append(line)
     return deps, extra_URLs
 
+
 def git_extended_name(original_name):
     """Get extended name."""
     if os.environ.get("WHEEL_EXT_NAME"):

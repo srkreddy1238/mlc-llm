@@ -106,7 +106,6 @@ std::pair<std::string, int> DetectDevice(std::string device) {
 
 int main(int argc, char* argv[]) {
   Args args = parseArgs(argc, argv);
-
   // model path
   std::string model_path = args.model;
 
@@ -115,7 +114,6 @@ int main(int argc, char* argv[]) {
 
   // Get the device name and device id
   auto [device_name, device_id] = DetectDevice(args.device);
-
   // mode of interaction
   std::string mode{"interactive"};
 

@@ -53,7 +53,7 @@ int ChatState::generate(const std::string& prompt, int max_tokens) {
 
   std::string output_text{""};
 
-  output_text = (*__json_wrapper).chat.completions.create(curr_window, max_tokens);
+  output_text = (*__json_wrapper).chat->completions.create(curr_window, max_tokens);
 
   if (__json_wrapper->engine_state->finish_reason == "length") {
     finish_reason_length = true;

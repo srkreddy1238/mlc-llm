@@ -94,11 +94,12 @@ target_include_directories(mlc_llm_objs
 target_link_libraries(mlc_llm_objs PRIVATE tvm_ffi_header)
 
 add_library(mlc_llm SHARED $<TARGET_OBJECTS:mlc_llm_objs>)
-add_library(mlc_llm_static STATIC $<TARGET_OBJECTS:mlc_llm_objs>)
-add_dependencies(mlc_llm_static tokenizers_cpp sentencepiece-static
-                 tokenizers_c tvm_runtime)
-set_target_properties(mlc_llm_static PROPERTIES OUTPUT_NAME mlc_llm)
-
+if(MLC_LLM_INSTALL_STATIC_LIB)
+  add_library(mlc_llm_static STATIC $<TARGET_OBJECTS:mlc_llm_objs>)
+  add_dependencies(mlc_llm_static tokenizers_cpp sentencepiece-static
+                  tokenizers_c tvm_runtime)
+  set_target_properties(mlc_llm_static PROPERTIES OUTPUT_NAME mlc_llm)
+endif()
 target_link_libraries(mlc_llm PUBLIC tvm_runtime)
 target_link_libraries(mlc_llm PRIVATE tokenizers_cpp)
 
@@ -117,7 +118,9 @@ endif()
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   target_compile_definitions(mlc_llm PRIVATE "TVM_LOG_DEBUG")
   target_compile_definitions(mlc_llm_objs PRIVATE "TVM_LOG_DEBUG")
-  target_compile_definitions(mlc_llm_static PRIVATE "TVM_LOG_DEBUG")
+  if(MLC_LLM_INSTALL_STATIC_LIB)
+    target_compile_definitions(mlc_llm_static PRIVATE "TVM_LOG_DEBUG")
+  endif()
 endif()
 
 if(BUILD_CPP_TEST)
@@ -177,7 +180,6 @@ else()
     TARGETS tvm_runtime
             mlc_llm
             mlc_llm_module
-            mlc_llm_static
             mlc_cli_chat
             tokenizers_cpp
             sentencepiece-static

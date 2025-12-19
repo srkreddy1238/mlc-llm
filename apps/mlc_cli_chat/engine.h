@@ -9,7 +9,6 @@
 #include <json_ffi/json_ffi_engine.h>
 #include <picojson.h>
 #include <tvm/runtime/module.h>
-#include <tvm/runtime/registry.h>
 
 #include <condition_variable>
 #include <fstream>
@@ -20,6 +19,10 @@
 #include <vector>
 
 #include "base.h"
+
+using tvm::ffi::Function;
+using tvm::ffi::TypedFunction;
+using namespace tvm::runtime;
 
 class EngineStateCli {
  public:
@@ -36,7 +39,7 @@ class EngineStateCli {
 
   EngineStateCli();
   std::function<void(const std::string&)> get_request_stream_callback();
-  std::string handle_chat_completion(tvm::runtime::Module mod, const std::string& request_json,
+  std::string handle_chat_completion(ffi::Module mod, const std::string& request_json,
                                      bool include_usage, const std::string& request_id);
   void getStats();
 };
@@ -44,11 +47,9 @@ class EngineStateCli {
 class Completions {
  public:
   std::shared_ptr<EngineStateCli> engine_state;
-  tvm::runtime::Module __mod;
+  ffi::Module __mod;
 
-  Completions();
-
-  Completions(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod);
+  explicit Completions(std::shared_ptr<EngineStateCli> engine_state, ffi::Module mod);
 
   inline std::string GenerateUUID(size_t length);
 
@@ -59,9 +60,7 @@ class Chat {
  public:
   Completions completions;
 
-  Chat();
-
-  Chat(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod);
+  explicit Chat(std::shared_ptr<EngineStateCli> engine_state, ffi::Module mod);
 };
 
 class BackgroundLoops {
@@ -70,14 +69,11 @@ class BackgroundLoops {
   std::thread background_loop_thread;
   std::thread background_stream_back_loop_thread;
   bool terminated = false;
-  tvm::runtime::Module __mod;
+  std::optional<ffi::Module> __mod;
 
  public:
-  // Default Constructor
-  BackgroundLoops();
-
   // Parametrized constructor
-  BackgroundLoops(tvm::runtime::Module mod);
+  explicit BackgroundLoops(ffi::Module mod);
   ~BackgroundLoops();
 
   void terminate();
@@ -85,16 +81,14 @@ class BackgroundLoops {
 
 class JSONFFIEngineWrapper {
  public:
-  Chat chat;
+  std::shared_ptr<Chat> chat;
   std::shared_ptr<EngineConfig> engine_config;
-  tvm::runtime::Module mod;
+  std::optional<ffi::Module> mod;
   std::shared_ptr<EngineStateCli> engine_state;
   std::shared_ptr<BackgroundLoops> background_loops;
 
-  JSONFFIEngineWrapper();
-
-  JSONFFIEngineWrapper(std::string model_path, std::string model_lib_path, std::string mode,
-                       std::string device, int device_id);
+  explicit JSONFFIEngineWrapper(std::string model_path, std::string model_lib_path,
+                                std::string mode, std::string device, int device_id);
   void Reset();
 };
 

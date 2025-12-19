@@ -69,8 +69,7 @@ std::function<void(const std::string&)> EngineStateCli::get_request_stream_callb
   };
 }
 
-std::string EngineStateCli::handle_chat_completion(tvm::runtime::Module mod,
-                                                   const std::string& request_json,
+std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::string& request_json,
                                                    bool include_usage,
                                                    const std::string& request_id) {
   // Clear the queue making sure that queue is empty
@@ -82,7 +81,7 @@ std::string EngineStateCli::handle_chat_completion(tvm::runtime::Module mod,
   }
 
   // TVM Global Function which generates the responses
-  bool success = mod.GetFunction("chat_completion")(request_json, request_id);
+  bool success = mod->GetFunction("chat_completion").value()(request_json, request_id).cast<bool>();
 
   if (!success) {
     std::cerr << "Failed to start chat completion" << std::endl;
@@ -167,7 +166,7 @@ std::string EngineStateCli::handle_chat_completion(tvm::runtime::Module mod,
       }
     }
   } catch (const std::exception& exception) {
-    mod.GetFunction("abort")(request_id);
+    mod->GetFunction("abort").value()(request_id);
     throw;
   }
   return output;
@@ -181,19 +180,14 @@ void EngineStateCli::getStats() {
             << std::endl;
 }
 
-// Default Constructor
-BackgroundLoops::BackgroundLoops() { terminated = false; }
-
 // Parametrized constructor
-BackgroundLoops::BackgroundLoops(tvm::runtime::Module mod) {
-  this->__mod = mod;
-  auto background_loop = mod.GetFunction("run_background_loop");
-  auto background_stream_back_loop = mod.GetFunction("run_background_stream_back_loop");
+BackgroundLoops::BackgroundLoops(ffi::Module mod) : __mod(std::move(mod)), terminated(false) {
+  auto background_loop = __mod.value()->GetFunction("run_background_loop");
+  auto background_stream_back_loop =
+      __mod.value()->GetFunction("run_background_stream_back_loop").value();
 
-  background_loop_thread = (std::thread)(background_loop);
+  background_loop_thread = (std::thread)(*background_loop);
   background_stream_back_loop_thread = (std::thread)(background_stream_back_loop);
-
-  terminated = false;
 }
 BackgroundLoops::~BackgroundLoops() { terminate(); }
 
@@ -202,7 +196,7 @@ void BackgroundLoops::terminate() {
     terminated = true;
 
     try {
-      __mod.GetFunction("exit_background_loop")();
+      __mod.value()->GetFunction("exit_background_loop").value()();
     } catch (const std::exception& e) {
       std::cerr << "Error calling exit_background_loop: " << e.what() << std::endl;
     }
@@ -216,13 +210,8 @@ void BackgroundLoops::terminate() {
   }
 }
 
-// Default constructor
-Completions::Completions() {}
-
-Completions::Completions(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod) {
-  this->engine_state = engine_state;
-  this->__mod = mod;
-}
+Completions::Completions(std::shared_ptr<EngineStateCli> engine_state, ffi::Module mod)
+    : __mod(std::move(mod)), engine_state(std::move(engine_state)) {}
 
 // Method to generate a unique string for each process
 inline std::string Completions::GenerateUUID(size_t length) {
@@ -263,11 +252,8 @@ std::string Completions::create(std::vector<Message>& messages, int max_tokens) 
   return output_res;
 }
 
-Chat::Chat() {}
-
-Chat::Chat(std::shared_ptr<EngineStateCli> engine_state, tvm::runtime::Module mod) {
-  this->completions = Completions(engine_state, mod);
-}
+Chat::Chat(std::shared_ptr<EngineStateCli> engine_state, ffi::Module mod)
+    : completions(std::move(Completions(engine_state, mod))) {}
 
 // Device str to DLDevice map
 DLDeviceType GetDevice(std::string device) {
@@ -286,33 +272,33 @@ DLDeviceType GetDevice(std::string device) {
   }
 }
 
-// Default constructor with No arguments
-JSONFFIEngineWrapper::JSONFFIEngineWrapper() {}
-
 JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string model_lib_path,
-                                           std::string mode, std::string device,
-                                           int device_id = 0) {
+                                           std::string mode, std::string device, int device_id = 0)
+    : chat(nullptr),
+      engine_config(nullptr),
+      mod(std::nullopt),  // not constructed yet
+      background_loops(nullptr),
+      engine_state(nullptr) {
   // Create an instance of EngineStateCli
   this->engine_state = std::make_shared<EngineStateCli>();
 
-  auto engine = tvm::runtime::Registry::Get("mlc.json_ffi.CreateJSONFFIEngine");
+  Optional<Function> engine = Function::GetGlobal("mlc.json_ffi.CreateJSONFFIEngine");
   if (engine == nullptr) {
     std::cout << "\nError: Unable to access TVM global registry mlc.json_ffi.CreateJSONFFIEngine"
               << std::endl;
   }
 
-  tvm::runtime::Module module_tvm = (*engine)();
+  auto module_tvm = (*engine)().cast<ffi::Module>();
 
   this->mod = module_tvm;
 
   // We can give mod as an argument to this
-  background_loops = std::make_shared<BackgroundLoops>(mod);
+  background_loops = std::make_shared<BackgroundLoops>(this->mod.value());
 
-  this->engine_config = std::make_shared<EngineConfig>(make_object<EngineConfigNode>());
+  this->engine_config = std::make_shared<EngineConfig>(tvm::ffi::make_object<EngineConfigNode>());
   (*engine_config)->model = model_path;
   (*engine_config)->model_lib = model_lib_path;
   (*engine_config)->verbose = false;
-
   if (mode == "interactive") {
     (*engine_config)->mode = EngineMode::kInteractive;
   } else if (mode == "local") {
@@ -355,18 +341,17 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
   auto call_back = engine_state->get_request_stream_callback();
 
   // Typecasting to the TVM Packed Function
-  auto tvm_callback = tvm::runtime::TypedPackedFunc<void(std::string)>(call_back);
+  auto tvm_callback = TypedFunction<void(std::string)>(call_back);
 
   // Call to Initialise Background Engine
-  mod.GetFunction("init_background_engine")(static_cast<int>(GetDevice(device)), device_id,
-                                            tvm_callback);
-
+  mod.value()
+      ->GetFunction("init_background_engine")
+      .value()(static_cast<int>(GetDevice(device)), device_id, tvm_callback);
   std::string engine_config_json_str{(*engine_config)->AsJSONString()};
-
   // Call to Reload Function of JSONFFIEngineImpl
-  mod.GetFunction("reload")(engine_config_json_str);
+  mod.value()->GetFunction("reload").value()(engine_config_json_str);
 
-  chat = Chat(engine_state, mod);
+  chat = std::make_shared<Chat>(engine_state, mod.value());
 }
 
-void JSONFFIEngineWrapper::Reset() { mod.GetFunction("reset")(); }
+void JSONFFIEngineWrapper::Reset() { mod.value()->GetFunction("reset").value()(); }
