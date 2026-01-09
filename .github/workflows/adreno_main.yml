@@ -205,6 +205,7 @@ jobs:
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-x86-target" --config Release
+           Copy-Item -Path ./lib/* -Destination "./mlc_llm-utils-win-arm64-target/bin/"
            Copy-Item -Path $Env:ADRENOACCL_SDK_X86\bin\* -Destination "./mlc_llm-utils-win-x86-target/bin/"
            Compress-Archive -Path mlc_llm-utils-win-x86-target/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-target.zip -Force
            New-Item -ItemType Directory -Path "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID" -Force
@@ -252,6 +253,7 @@ jobs:
            cmake .. -G "Visual Studio 17 2022" -A ARM64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-arm64-target" --config Release
+           Copy-Item -Path ./lib/* -Destination "./mlc_llm-utils-win-arm64-target/bin/"
            Copy-Item -Path $Env:ADRENOACCL_SDK_ARM64\bin\* -Destination "./mlc_llm-utils-win-arm64-target/bin/"
            Compress-Archive -Path mlc_llm-utils-win-arm64-target/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-target.zip -Force
            Copy-Item -Path mlc_llm-utils-win-arm64-target.zip -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/"

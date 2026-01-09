@@ -37,16 +37,6 @@ function build-model {
     Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_arm64 -o ./dist/libs/${model}-${quantization}-adreno-arm64.dll"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    if ( $ACCL -eq "1") {
-      # Compile the model for Adreno with acceleration x86
-      $global:LASTEXITCODE = 0
-      Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_x86 --opt adrenoaccl=1 -o ./dist/libs/${model}-${quantization}-adreno-accl-x86.dll"
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      # Compile the model for Adreno with acceleration amr64
-      $global:LASTEXITCODE = 0
-      Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:adreno_arm64 --opt adrenoaccl=1 -o ./dist/libs/${model}-${quantization}-adreno-accl-arm64.dll"
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    }
 
     if ( $CLML -eq "1") {
       # Compile the model for Adreno with acceleration x86
