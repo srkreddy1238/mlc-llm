@@ -43,6 +43,10 @@ function test-model {
     run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-clml-arm64.dll --device opencl --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    $global:LASTEXITCODE = 0
+    run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-accl-arm64.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     # x64 Test
     $global:LASTEXITCODE = 0
     run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-x86.dll --device opencl --with-prompt `"What is the capital of India ?`""
@@ -50,6 +54,10 @@ function test-model {
 
     $global:LASTEXITCODE = 0
     run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-clml-x86.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    $global:LASTEXITCODE = 0
+    run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-accl-x86.dll --device opencl --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # Remove weights as CI may get full soon
