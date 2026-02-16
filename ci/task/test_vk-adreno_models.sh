@@ -15,26 +15,17 @@ test_model() {
     adb shell "mkdir -p /data/local/tmp/mlc-ci/models"
 
     adb push $MODEL_ARTIFACTS_PATH/dist/${model}-q4f16_0-MLC /data/local/tmp/mlc-ci/models/
-    adb push $MODEL_ARTIFACTS_PATH/dist/libs/${model}-q4f16_0-adreno-opencl.so /data/local/tmp/mlc-ci/models/
-    adb push $MODEL_ARTIFACTS_PATH/dist/libs/${model}-q4f16_0-adreno-accl.so /data/local/tmp/mlc-ci/models/
+    adb push $MODEL_ARTIFACTS_PATH/dist/libs/${model}-q4f16_0-adreno-vulkan.so /data/local/tmp/mlc-ci/models/
 
     adb shell "cd /data/local/tmp/mlc-ci; \
         LD_LIBRARY_PATH=./lib/ \
         ./bin/mlc_cli_chat \
         --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
-        --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-opencl.so \
+        --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-vulkan.so \
         --max-tokens 100 \
-        --device opencl \
+        --device vulkan \
         --with-prompt \"write a poem about moon in 100 words\""
 
-    adb shell "cd /data/local/tmp/mlc-ci; \
-        LD_LIBRARY_PATH=./lib/ \
-        ./bin/mlc_cli_chat \
-        --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
-        --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-accl.so \
-        --max-tokens 100 \
-        --device opencl \
-        --with-prompt \"write a poem about moon in 100 words\""
 }
 
 # Setup target

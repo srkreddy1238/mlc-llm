@@ -64,6 +64,22 @@ Function FunctionTable::SessionFuncAsPackedFunc(Session sess, DRef sess_func, St
   });
 }
 
+void FunctionTable::PrecompileShader(Module executable, Device device) {
+  if (device.device_type == kDLOpenCL) {
+    auto f_get = executable.value()->GetFunction("opencl.GetPreCompiledPrograms", true);
+    TVM_FFI_ICHECK(f_get.defined()) << "Cannot find opencl.GetPreCompiledPrograms";
+    tvm::ffi::String bytes = f_get.value()().cast<String>();
+    auto f_set = executable.value()->GetFunction("opencl.SetPreCompiledPrograms", true);
+    TVM_FFI_ICHECK(f_set.defined()) << "Cannot find opencl.SetPreCompiledPrograms";
+    f_set.value()(tvm::ffi::String(bytes));
+  } else if (device.device_type == kDLVulkan) {
+    auto f_set = executable.value()->GetFunction("precompiled_vulkan_pipeline", true);
+    TVM_FFI_ICHECK(f_set.defined()) << "Cannot find precompiled_vulkan_pipeline";
+    bool success = f_set.value()().cast<bool>();
+    TVM_FFI_ICHECK(success) << "Failed to set precompiled programs";
+  }
+}
+
 void FunctionTable::Init(String reload_lib_path, Device device, tvm::ffi::json::Object model_config,
                          Optional<Session> session, int num_shards, int num_stages) {
   local_gpu_device = device;
@@ -115,15 +131,7 @@ void FunctionTable::Init(String reload_lib_path, Device device, tvm::ffi::json::
     } else {
       executable = tvm::ffi::Module::LoadFromFile(reload_lib_path);
       fload_exec = executable.value()->GetFunction("vm_load_executable");
-      /* precompile opencl kernel programs */
-      if (device.device_type == kDLOpenCL) {
-        auto f_get = executable.value()->GetFunction("opencl.GetPreCompiledPrograms", true);
-        TVM_FFI_ICHECK(f_get.defined()) << "Cannot find opencl.GetPreCompiledPrograms";
-        tvm::ffi::String bytes = f_get.value()().cast<String>();
-        auto f_set = executable.value()->GetFunction("opencl.SetPreCompiledPrograms", true);
-        TVM_FFI_ICHECK(f_set.defined()) << "Cannot find opencl.SetPreCompiledPrograms";
-        f_set.value()(tvm::ffi::String(bytes));
-      }
+      PrecompileShader(executable.value(), device);
       TVM_FFI_ICHECK(fload_exec.defined()) << "TVM runtime cannot find vm_load_executable";
     }
     this->use_disco = false;

@@ -136,13 +136,13 @@ class OptimizationFlags:
 
         def _adrenoaccl(target) -> bool:
             """correct adrenoaccl flag"""
-            if "adreno" not in str(target.attrs):
+            if "adreno" not in str(target.device_name):
                 return False
             return self.adrenoaccl
 
         def _openclml(target) -> bool:
             """correct openclml flag"""
-            if "adreno" not in str(target.attrs):
+            if "adreno" not in str(target.device_name):
                 return False
             return self.openclml
 

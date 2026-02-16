@@ -3,10 +3,60 @@
  * \file mlc_cli_chat.cc
  */
 
+#include <sys/stat.h>
+
+#include <fstream>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "chat_state.h"
 #include "engine.h"
+
+static std::string read_stdin_all() {
+  std::ostringstream oss;
+  oss << std::cin.rdbuf();
+  return oss.str();
+}
+
+static std::string read_file_all(const std::string& path, size_t max_bytes = 10 * 1024 * 1024) {
+  struct stat st {};
+  if (stat(path.c_str(), &st) != 0) {
+    throw std::runtime_error("Cannot stat file: " + path);
+  }
+  if (static_cast<size_t>(st.st_size) > max_bytes) {
+    throw std::runtime_error("File too large (limit " + std::to_string(max_bytes) +
+                             " bytes): " + path);
+  }
+  std::ifstream ifs(path, std::ios::binary);
+  if (!ifs) {
+    throw std::runtime_error("Failed to open file: " + path);
+  }
+  std::string data;
+  data.resize(static_cast<size_t>(st.st_size));
+  if (!ifs.read(&data[0], data.size())) {
+    throw std::runtime_error("Failed to read file: " + path);
+  }
+
+  if (data.size() >= 3 && (unsigned char)data[0] == 0xEF && (unsigned char)data[1] == 0xBB &&
+      (unsigned char)data[2] == 0xBF) {
+    data.erase(0, 3);
+  }
+
+  std::string out;
+  out.reserve(data.size());
+  for (size_t i = 0; i < data.size(); ++i) {
+    if (data[i] == '\r') {
+      if (i + 1 < data.size() && data[i + 1] == '\n') continue;
+    }
+    out.push_back(data[i]);
+  }
+
+  if (!out.empty() && out.back() == '\n') out.pop_back();
+  return out;
+}
 
 struct Args {
   std::string model;
@@ -17,6 +67,8 @@ struct Args {
   int max_tokens = -1;
   std::string prompt;
   int repeat = 1;
+  // New field to carry a file path if provided
+  std::string prompt_file;
 };
 
 // Help Prompt
@@ -39,6 +91,7 @@ void printHelp() {
       << "  --repeat            [optional] Repeat the application with desire interation (default "
          "1) "
          "by reseting history. it is ignore for chat mode."
+      << "  --with-prompt-file <path>  [optional] read prompt from a text file\n"
       << "  --help              [optional] Tool usage information\n"
       /*
       << "  --evaluate          (flag, default: false)\n"
@@ -70,6 +123,14 @@ Args parseArgs(int argc, char* argv[]) {
       args.repeat = std::stoi(arguments[++i]);
     } else if (arguments[i] == "--with-prompt" && i + 1 < arguments.size()) {
       args.prompt = arguments[++i];
+    } else if (arguments[i].rfind("--with-prompt=", 0) == 0) {
+      args.prompt = arguments[i].substr(std::string("--with-prompt=").size());
+    }
+    // New flag forms for file ===
+    else if (arguments[i] == "--with-prompt-file" && i + 1 < arguments.size()) {
+      args.prompt_file = arguments[++i];
+    } else if (arguments[i].rfind("--with-prompt-file=", 0) == 0) {
+      args.prompt_file = arguments[i].substr(std::string("--with-prompt-file=").size());
     } else if (arguments[i] == "--help") {
       printHelp();
       exit(0);
@@ -81,17 +142,35 @@ Args parseArgs(int argc, char* argv[]) {
 
   if (args.model.empty()) {
     printHelp();
-    throw std::runtime_error("Invalid arguments");
+    throw std::runtime_error("Invalid arguments: --model is required");
+  }
+  // -------------------------------
+  // Resolve prompt source(s)
+  // -------------------------------
+  if (!args.prompt.empty() && !args.prompt_file.empty()) {
+    throw std::runtime_error("Use either --with-prompt or --with-prompt-file, not both.");
+  }
+  if (!args.prompt_file.empty()) {
+    // explicit file wins
+    args.prompt = read_file_all(args.prompt_file);
+    args.prompt_file.clear();
+  } else if (!args.prompt.empty()) {
+    // shortcuts on existing flag
+    if (args.prompt == "-") {
+      args.prompt = read_stdin_all();
+    } else if (!args.prompt.empty() && args.prompt.front() == '@') {
+      args.prompt = read_file_all(args.prompt.substr(1));
+    }
   }
 
   return args;
 }
 
 // Method to detect the device
-std::pair<std::string, int> DetectDevice(std::string device) {
+static std::pair<std::string, int> DetectDevice(std::string device) {
   std::string device_name;
   int device_id;
-  int delimiter_pos = device.find(":");
+  auto delimiter_pos = device.find(":");
 
   // cuda:0 which means the device name is cuda and the device id is 0
   if (delimiter_pos == std::string::npos) {

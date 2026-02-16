@@ -51,6 +51,8 @@ struct FunctionTable {
   void Init(String reload_lib_path, Device device, tvm::ffi::json::Object model_config,
             Optional<Session> session, int num_shards, int num_stages);
 
+  void PrecompileShader(Module executable, Device device);
+
   ObjectRef LoadParams(const std::string& model_path, Device device);
 
   void _InitFunctions();

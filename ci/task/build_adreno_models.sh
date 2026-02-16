@@ -24,10 +24,11 @@ build_model() {
 
     python3 -m  mlc_llm gen_config ${MODEL_LOCAL_BASE}/${model} --quantization ${quantization} --conv-template ${template} ${addl_args} -o ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC
     python3 -m mlc_llm convert_weight ${MODEL_LOCAL_BASE}/${model} --quantization ${quantization} -o ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/ --device cuda
-    python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:adreno-so -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno.so
+    python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:cl-adreno-so -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno-opencl.so
     if [ $ACCL -eq 1 ] ; then
-      python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:adreno-so --opt "adrenoaccl=1" -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno-accl.so
+      python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:cl-adreno-so --opt "adrenoaccl=1" -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno-accl.so
     fi
+    python3 -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device android:vk-adreno-so -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-adreno-vulkan.so
 }
 
 # LLaMa-v2-7B

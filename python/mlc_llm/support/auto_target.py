@@ -455,7 +455,7 @@ PRESET = {
         },
         "build": _build_android,
     },
-    "android:adreno-so": {
+    "android:cl-adreno-so": {
         "target": {
             "kind": "opencl",
             "device": "adreno",
@@ -467,7 +467,28 @@ PRESET = {
         },
         "build": _build_android_so,
     },
-    "windows:adreno_x86": {
+    "android:vk-adreno-so": {
+        "target": {
+            "kind": "vulkan",
+            "device": "adreno",
+            "keys": ["vulkan", "gpu"],
+            "max_threads_per_block": 512,
+            "max_shared_memory_per_block": 32768,
+            "supports_float16": True,
+            "supports_int64": True,
+            "supports_int16": True,
+            "supports_int8": True,
+            "supports_8bit_buffer": True,
+            "supports_16bit_buffer": True,
+            "supports_storage_buffer_storage_class": True,
+            "host": {
+                "kind": "llvm",
+                "mtriple": "aarch64-linux-android",
+            },
+        },
+        "build": _build_android_so,
+    },
+    "windows:cl-adreno_x86": {
         "target": {
             "kind": "opencl",
             "device": "adreno",
@@ -478,11 +499,51 @@ PRESET = {
             },
         },
     },
-    "windows:adreno_arm64": {
+    "windows:cl-adreno_arm64": {
         "target": {
             "kind": "opencl",
             "device": "adreno",
             "max_threads_per_block": 512,
+            "host": {
+                "kind": "llvm",
+                "mtriple": "aarch64-pc-windows-msvc",
+            },
+        },
+    },
+    "windows:vk-adreno_x86": {
+        "target": {
+            "kind": "vulkan",
+            "device": "adreno",
+            "keys": ["vulkan", "gpu"],
+            "max_threads_per_block": 512,
+            "max_shared_memory_per_block": 32768,
+            "supports_float16": True,
+            "supports_int64": True,
+            "supports_int16": True,
+            "supports_int8": True,
+            "supports_8bit_buffer": True,
+            "supports_16bit_buffer": True,
+            "supports_storage_buffer_storage_class": True,
+            "host": {
+                "kind": "llvm",
+                "mtriple": "x86_64-pc-windows-msvc",
+            },
+        },
+    },
+    "windows:vk-adreno_arm64": {
+        "target": {
+            "kind": "vulkan",
+            "device": "adreno",
+            "keys": ["vulkan", "gpu"],
+            "max_threads_per_block": 512,
+            "max_shared_memory_per_block": 32768,
+            "supports_float16": True,
+            "supports_int64": True,
+            "supports_int16": True,
+            "supports_int8": True,
+            "supports_8bit_buffer": True,
+            "supports_16bit_buffer": True,
+            "supports_storage_buffer_storage_class": True,
             "host": {
                 "kind": "llvm",
                 "mtriple": "aarch64-pc-windows-msvc",

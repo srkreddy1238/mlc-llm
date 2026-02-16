@@ -36,7 +36,7 @@ function test-model {
     )
     # Arm64 Test
     $global:LASTEXITCODE = 0
-    run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-arm64.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-opencl-adreno-arm64.dll --device opencl --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $global:LASTEXITCODE = 0
@@ -46,7 +46,7 @@ function test-model {
 
     # x64 Test
     $global:LASTEXITCODE = 0
-    run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-x86.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-opencl-adreno-x86.dll --device opencl --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $global:LASTEXITCODE = 0
