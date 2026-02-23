@@ -82,6 +82,7 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
     indptr: Tensor,
     quantize_dtype: str,
     group_size: int,
+    weight_layout: Literal["NK", "KN"] = "NK",
 ) -> Tensor:
     """GEMV for project-in (e1-e3) or project-out (e2) in MLP but the weight is quantized.
     It needs to be dequantized before the GEMV computation.
@@ -119,8 +120,11 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
         The output tensor of shape (experts_per_tok, out_features), where `experts_per_tok` is the
         number of activated experts per token.
     """
+
     (x_leading_dim, in_features), model_dtype = x.shape, x.dtype
-    (local_experts, out_features, _), storage_dtype = w.shape, w.dtype
+    local_experts = w.shape[0]
+    out_features = w.shape[2] if weight_layout == "KN" else w.shape[1]
+    storage_dtype = w.dtype
     _, experts_per_tok = indptr.shape
     quantize_dtype_bits = DataType(quantize_dtype).bits
     num_elem_per_storage = DataType(storage_dtype).bits // quantize_dtype_bits
@@ -130,8 +134,12 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
     def _dequantize(w, s, e, i, j):
         tir_bin_mask = tir.const((2**quantize_dtype_bits) - 1, storage_dtype)
         tir_max_int = tir.const((2 ** (quantize_dtype_bits - 1)) - 1, model_dtype)
-        w = w[e, i, j // num_elem_per_storage]
-        s = s[e, i, j // group_size]
+        if weight_layout == "KN":
+            w = w[e, j // num_elem_per_storage, i]
+            s = s[e, j // group_size, i]
+        else:
+            w = w[e, i, j // num_elem_per_storage]
+            s = s[e, i, j // group_size]
         shift = (j % num_elem_per_storage * quantize_dtype_bits).astype(storage_dtype)
         w = tir.bitwise_and(tir.shift_right(w, shift), tir_bin_mask).astype(model_dtype)
         return (w - tir_max_int) * s
@@ -140,13 +148,42 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
         return x[0, j] if x_leading_dim == 1 else x[e, j]
 
     assert x.shape == [x_leading_dim, in_features] and x.dtype == model_dtype
-    assert w.shape == [local_experts, out_features, num_storage] and w.dtype == storage_dtype
-    assert scale.shape == [local_experts, out_features, num_group] and scale.dtype == model_dtype
+    assert w.dtype == storage_dtype
+    if weight_layout == "KN":
+        assert w.shape == [local_experts, num_storage, out_features]
+        assert scale.shape == [local_experts, num_group, out_features]
+    else:
+        assert w.shape == [local_experts, out_features, num_storage]
+        assert scale.shape == [local_experts, out_features, num_group]
     assert indptr.shape == [1, experts_per_tok] and indptr.dtype == "int32"
     assert x_leading_dim in [1, experts_per_tok]
 
     @T.prim_func(private=True)
-    def _func(
+    def _func_kn(
+        x: T.Buffer((x_leading_dim, in_features), model_dtype),
+        w: T.Buffer((local_experts, num_storage, out_features), storage_dtype),
+        scale: T.Buffer((local_experts, num_group, out_features), model_dtype),
+        indptr: T.Buffer((1, experts_per_tok), "int32"),
+        o: T.Buffer((experts_per_tok, out_features), model_dtype),
+    ):
+        T.func_attr({"op_pattern": 4, "tir.noalias": True})  # kOutEWiseFusable
+        for expert_id in T.thread_binding(experts_per_tok, thread="blockIdx.y"):
+            with T.block("gemv_o"):
+                e = T.axis.spatial(experts_per_tok, expert_id)
+                y = T.alloc_buffer((out_features, in_features), model_dtype)
+                for i1, i2 in T.grid(out_features, in_features):
+                    with T.block("dequantize"):
+                        i, j = T.axis.remap("SS", [i1, i2])
+                        y[i, j] = _dequantize(w, scale, indptr[0, e], i, j)
+                for i1, i2 in T.grid(out_features, in_features):
+                    with T.block("gemv"):
+                        i, j = T.axis.remap("SR", [i1, i2])
+                        with T.init():
+                            o[e, i] = T.cast(T.float16(0), model_dtype)
+                        o[e, i] += access_x(x, e, j) * y[i, j]
+
+    @T.prim_func(private=True)
+    def _func_nk(
         x: T.Buffer((x_leading_dim, in_features), model_dtype),
         w: T.Buffer((local_experts, out_features, num_storage), storage_dtype),
         scale: T.Buffer((local_experts, out_features, num_group), model_dtype),
@@ -169,6 +206,7 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
                             o[e, i] = T.cast(T.float16(0), model_dtype)
                         o[e, i] += access_x(x, e, j) * y[i, j]
 
+    _func = _func_kn if weight_layout == "KN" else _func_nk
     return op.tensor_ir_op(
         _func,
         "moe_dequantize_gemv",
@@ -422,10 +460,7 @@ def group_gemm(x: Tensor, w: Tensor, indptr: Tensor):  # pylint: disable=too-man
 
     @T.prim_func(private=True)
     def _func(  # pylint: disable=too-many-statements
-        var_x: T.handle,
-        var_w: T.handle,
-        var_indptr: T.handle,
-        var_o: T.handle,
+        var_x: T.handle, var_w: T.handle, var_indptr: T.handle, var_o: T.handle
     ):
         T.func_attr({"tir.is_scheduled": 1, "tir.noalias": True})
         B = T.int32(is_size_var=True)
@@ -489,17 +524,13 @@ def group_gemm(x: Tensor, w: Tensor, indptr: Tensor):  # pylint: disable=too-man
                                 with T.sblock("X_shared"):
                                     i, j = T.axis.remap("SS", [a0, a1])
                                     X_tile[i, j] = T.if_then_else(
-                                        m_offset + i < row[1],
-                                        X[m_offset + i, j],
-                                        zero,
+                                        m_offset + i < row[1], X[m_offset + i, j], zero
                                     )
                             for a0, a1 in T.grid(BLK_N, K):
                                 with T.sblock("W_shared"):
                                     i, j = T.axis.remap("SS", [a0, a1])
                                     W_tile[i, j] = T.if_then_else(
-                                        n_offset + i < N,
-                                        W[e, n_offset + i, j],
-                                        zero,
+                                        n_offset + i < N, W[e, n_offset + i, j], zero
                                     )
                             for a0, a1, a2 in T.grid(BLK_M, BLK_N, K):
                                 with T.sblock("compute"):
@@ -522,10 +553,7 @@ def group_gemm(x: Tensor, w: Tensor, indptr: Tensor):  # pylint: disable=too-man
             num_loops = len(sch.get_loops(block))
             sch.compute_at(block, ko, preserve_unit_loops=True)
             loops = sch.get_loops(block)[-num_loops:]
-            ty, tx, _, vec = sch.split(
-                sch.fuse(*loops),
-                factors=[TY, TX, None, vec_len],
-            )
+            ty, tx, _, vec = sch.split(sch.fuse(*loops), factors=[TY, TX, None, vec_len])
             sch.vectorize(vec)
             sch.bind(ty, "threadIdx.y")
             sch.bind(tx, "threadIdx.x")
@@ -570,6 +598,7 @@ def dequantize_group_gemm(
     quantize_dtype: str,
     indptr_dtype: str,
     group_size: int,
+    weight_layout: Literal["NK", "KN"] = "NK",
 ):
     """Group GEMM in MoE models but the weight is quantized.
 
@@ -605,25 +634,37 @@ def dequantize_group_gemm(
         Output tensor of shape (batch_size, out_features).
     """
     (_, in_features), model_dtype = x.shape, x.dtype
-    (num_local_experts, out_features, _), storage_dtype = w.shape, w.dtype
+    num_local_experts = w.shape[0]
+    out_features = w.shape[2] if weight_layout == "KN" else w.shape[1]
+    storage_dtype = w.dtype
     quantize_dtype_bits = DataType(quantize_dtype).bits
     num_elem_per_storage = DataType(storage_dtype).bits // quantize_dtype_bits
     num_group = (in_features + group_size - 1) // group_size
     num_storage = group_size // num_elem_per_storage * num_group
+    if weight_layout == "KN":
+        assert w.shape == [num_local_experts, num_storage, out_features]
+        assert scale.shape == [num_local_experts, num_group, out_features]
+    else:
+        assert w.shape == [num_local_experts, out_features, num_storage]
+        assert scale.shape == [num_local_experts, out_features, num_group]
 
     def _dequantize(w, s, e, i, j):
         tir_bin_mask = tir.const((1 << quantize_dtype_bits) - 1, storage_dtype)
         tir_max_int = tir.const((2 ** (quantize_dtype_bits - 1)) - 1, model_dtype)
-        w = w[e, i, j // num_elem_per_storage]
-        s = s[e, i, j // group_size]
-        shift = (j % num_elem_per_storage * quantize_dtype_bits).astype(storage_dtype)
+        if weight_layout == "KN":
+            w = w[e, j // num_elem_per_storage, i]
+            s = s[e, j // group_size, i]
+        else:
+            w = w[e, i, j // num_elem_per_storage]
+            s = s[e, i, j // group_size]
+        shift = (j % num_elem_per_storage * quantize_dtype_bits).astype("int32")
         w = tir.bitwise_and(tir.shift_right(w, shift), tir_bin_mask).astype(model_dtype)
         return (w - tir_max_int) * s
 
     Ne, N, K = num_local_experts, out_features, in_features
-    BLK_M, BLK_N, BLK_K = 8, 128, 32
+    BLK_M, BLK_N, BLK_K = 8, 256, 32
     TX, TY, CTA_COUNT = 8, 32, 1024
-    VEC_X, VEC_W, VEC_O, VEC_DOT = 1, 1, 1, 1
+    VEC_X, VEC_W, VEC_O, VEC_DOT = 4, 1, 8, 1
     UNROLL = 64
     STORAGE_ALIGN = False
     assert BLK_K % 8 == 0
@@ -633,7 +674,94 @@ def dequantize_group_gemm(
         indptr = op.pad(indptr, [1, 0], "constant", 0)
 
     @T.prim_func(private=True)
-    def _func(
+    def _func_kn(
+        var_x: T.handle,
+        w: T.Buffer((Ne, num_storage, N), storage_dtype),
+        scale: T.Buffer((Ne, num_group, N), model_dtype),
+        indptr: T.Buffer((Ne + 1,), indptr_dtype),
+        var_o: T.handle,
+    ):
+        T.func_attr({"tir.is_scheduled": 1, "tir.noalias": True})
+        B = T.int32(is_size_var=True)
+        X = T.match_buffer(var_x, (B, K), model_dtype)
+        O = T.match_buffer(var_o, (B, N), model_dtype)
+        for _bx in T.thread_binding(CTA_COUNT, thread="blockIdx.x"):
+            with T.block("CTA"):
+                bx = T.axis.spatial(CTA_COUNT, _bx)
+                T.reads(X[:, :], w[:, :, :], scale[:, :, :], indptr[:])
+                T.writes(O[:, :])
+                # pylint: disable=redefined-builtin
+                sum = T.alloc_buffer((2,), indptr_dtype, scope="local")
+                row = T.alloc_buffer((2,), indptr_dtype, scope="local")
+                cur_e = T.alloc_buffer((1,), indptr_dtype, scope="local")
+                tile_id = T.alloc_buffer((1,), indptr_dtype, scope="local")
+                # pylint: enable=redefined-builtin
+                sum[0] = 0
+                sum[1] = T.ceildiv(indptr[1] - indptr[0], BLK_M) * tiles_per_row
+                row[0] = 0
+                row[1] = indptr[1] - indptr[0]
+                cur_e[0] = 0
+                tile_id[0] = bx
+                while T.tvm_thread_invariant(cur_e[0] < Ne):  # pylint: disable=no-member
+                    # move to the current group
+                    while sum[1] <= tile_id[0] and cur_e[0] < Ne:
+                        cur_e[0] += 1
+                        if cur_e[0] < Ne:
+                            e = cur_e[0]
+                            delta = indptr[e + 1] - indptr[e]
+                            sum[0] = sum[1]
+                            sum[1] += T.ceildiv(delta, BLK_M) * tiles_per_row
+                            row[0] = row[1]
+                            row[1] += delta
+                    # sync threads to make sure all threads have the same tile position
+                    T.tvm_storage_sync("shared")
+                    if T.tvm_thread_invariant(cur_e[0] < Ne):  # pylint: disable=no-member
+                        # fetch current tile position
+                        e = cur_e[0]  # type: ignore[no-redef]
+                        num_tiles = tile_id[0] - sum[0]
+                        m_offset = T.floordiv(num_tiles, tiles_per_row) * BLK_M + row[0]
+                        n_offset = T.floormod(num_tiles, tiles_per_row) * BLK_N
+                        with T.block("gemm"):
+                            T.reads(
+                                row[1],
+                                X[m_offset : m_offset + BLK_M, :],
+                                w[e, :, n_offset : n_offset + BLK_N],
+                                scale[e, :, n_offset : n_offset + BLK_N],
+                            )
+                            T.writes(O[m_offset : m_offset + BLK_M, n_offset : n_offset + BLK_N])
+                            X_tile = T.alloc_buffer((BLK_M, K), model_dtype, scope="shared")
+                            W_tile = T.alloc_buffer((BLK_N, K), model_dtype, scope="shared")
+                            O_tile = T.alloc_buffer((BLK_M, BLK_N), "float32", scope="local")
+                            for a0, a1 in T.grid(BLK_M, K):
+                                with T.block("X_shared"):
+                                    i, j = T.axis.remap("SS", [a0, a1])
+                                    X_tile[i, j] = T.if_then_else(
+                                        m_offset + i < row[1], X[m_offset + i, j], zero
+                                    )
+                            for a0, a1 in T.grid(BLK_N, K):
+                                with T.block("W_shared"):
+                                    i, j = T.axis.remap("SS", [a0, a1])
+                                    W_tile[i, j] = T.if_then_else(
+                                        n_offset + i < N,
+                                        _dequantize(w, scale, e, n_offset + i, j),
+                                        zero,
+                                    )
+                            for a0, a1, a2 in T.grid(BLK_M, BLK_N, K):
+                                with T.block("compute"):
+                                    i, j, k = T.axis.remap("SSR", [a0, a1, a2])
+                                    with T.init():
+                                        O_tile[i, j] = zero
+                                    O_tile[i, j] += X_tile[i, k] * W_tile[j, k]
+                            for a0, a1 in T.grid(BLK_M, BLK_N):
+                                with T.block("store"):
+                                    i, j = T.axis.remap("SS", [a0, a1])
+                                    if m_offset + i < row[1] and n_offset + j < N:
+                                        O[m_offset + i, n_offset + j] = O_tile[i, j]
+                    # move to next tile
+                    tile_id[0] += CTA_COUNT
+
+    @T.prim_func(private=True)
+    def _func_nk(
         var_x: T.handle,
         w: T.Buffer((Ne, N, num_storage), storage_dtype),
         scale: T.Buffer((Ne, N, num_group), model_dtype),
@@ -684,8 +812,8 @@ def dequantize_group_gemm(
                             T.reads(
                                 row[1],
                                 X[m_offset : m_offset + BLK_M, :],
-                                w[e, n_offset : n_offset + BLK_N, :],
-                                scale[e, n_offset : n_offset + BLK_N, :],
+                                w[e, :, n_offset : n_offset + BLK_N],
+                                scale[e, :, n_offset : n_offset + BLK_N],
                             )
                             T.writes(
                                 O[
@@ -700,9 +828,7 @@ def dequantize_group_gemm(
                                 with T.sblock("X_shared"):
                                     i, j = T.axis.remap("SS", [a0, a1])
                                     X_tile[i, j] = T.if_then_else(
-                                        m_offset + i < row[1],
-                                        X[m_offset + i, j],
-                                        zero,
+                                        m_offset + i < row[1], X[m_offset + i, j], zero
                                     )
                             for a0, a1 in T.grid(BLK_N, K):
                                 with T.sblock("W_shared"):
@@ -727,42 +853,56 @@ def dequantize_group_gemm(
                     tile_id[0] += CTA_COUNT
 
     def _schedule():
-        sch = s_tir.Schedule(_func)
-
-        def _cooperative_fetch(block, vec_len):
-            num_loops = len(sch.get_loops(block))
-            sch.compute_at(block, ko, preserve_unit_loops=True)
-            loops = sch.get_loops(block)[-num_loops:]
-            ty, tx, _, vec = sch.split(
-                sch.fuse(*loops),
-                factors=[TY, TX, None, vec_len],
-            )
-            sch.vectorize(vec)
-            sch.bind(ty, "threadIdx.y")
-            sch.bind(tx, "threadIdx.x")
-            if STORAGE_ALIGN:
-                sch.storage_align(block, 0, axis=1, factor=8, offset=vec_len)
-            return block
+        if weight_layout == "KN":
+            sch = tir.Schedule(_func_kn)
+        else:
+            sch = tir.Schedule(_func_nk)
 
         main_block = sch.get_sblock("compute")
         x, y, k = sch.get_loops(main_block)
-        ty, yi = sch.split(y, [TY, None])
-        tx, xi, vec_c = sch.split(x, [TX, None, VEC_DOT])
-        ko, ki = sch.split(k, factors=[None, BLK_K])
-        sch.reorder(ty, tx, ko, ki, yi, xi, vec_c)
+        yi, ty, vec_c = sch.split(y, [None, TY, VEC_O])
+        tx, xi = sch.split(x, [TX, None])
+        k0, k1, k2, k3 = sch.split(k, factors=[None, VEC_X, 4, 8])
+        sch.reorder(ty, tx, k0, k1, k2, k3, yi, xi, vec_c)
         sch.bind(ty, "threadIdx.y")
         sch.bind(tx, "threadIdx.x")
         sch.vectorize(vec_c)
+        sch.unroll(xi)
+
+        inp_blk = sch.get_block("X_shared")
+        sch.compute_at(inp_blk, k0)
+        x, y = sch.get_loops(inp_blk)[-2:]
+        tx, xi = sch.split(x, [TX, None])
+        yi, ty, vec_c = sch.split(y, [None, TY, VEC_X])
+        sch.reorder(ty, tx, yi, xi, vec_c)
+        sch.bind(ty, "threadIdx.y")
+        sch.bind(tx, "threadIdx.x")
+        sch.vectorize(vec_c)
+
+        dequant_block = sch.get_block("W_shared")
+        sch.compute_at(dequant_block, k3)
+        sch.set_scope(dequant_block, 0, "local")
+        yy = sch.get_loops(dequant_block)[-1]
+        _, tyy, y_vec = sch.split(yy, [None, TY, VEC_O])
+        sch.bind(tyy, "threadIdx.y")
+        sch.vectorize(y_vec)
+
+        sch.unroll(k3)
+
         if UNROLL > 0:
             sch.annotate(tx, ann_key="pragma_auto_unroll_max_step", ann_val=UNROLL)
             sch.annotate(tx, ann_key="pragma_unroll_explicit", ann_val=1)
-        l2g = sch.get_sblock("store")
-        sch.reverse_compute_at(l2g, tx, preserve_unit_loops=True)
-        _, v = sch.split(sch.get_loops(l2g)[-1], [None, VEC_O])
-        sch.vectorize(v)
-        _cooperative_fetch(sch.get_sblock("X_shared"), vec_len=VEC_X)
-        _cooperative_fetch(sch.get_sblock("W_shared"), vec_len=VEC_W)
-        sch.decompose_reduction(main_block, ko)
+
+        l2g = sch.get_block("store")
+        x, y = sch.get_loops(l2g)
+        yi, ty, vec_c = sch.split(y, [None, TY, VEC_O])
+        tx, xi = sch.split(x, [TX, None])
+        sch.reorder(ty, tx, yi, xi, vec_c)
+        sch.bind(ty, "threadIdx.y")
+        sch.bind(tx, "threadIdx.x")
+        sch.vectorize(vec_c)
+
+        sch.decompose_reduction(main_block, k0)
         return sch.mod["main"]
 
     return op.tensor_ir_op(

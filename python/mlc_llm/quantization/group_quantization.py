@@ -64,10 +64,7 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
         self._quantize_func_cache = {}
 
     def quantize_model(
-        self,
-        model: nn.Module,
-        quant_map: QuantizeMapping,
-        name_prefix: str,
+        self, model: nn.Module, quant_map: QuantizeMapping, name_prefix: str
     ) -> nn.Module:
         """
         Quantize model with group quantization
@@ -140,11 +137,11 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
                     return GroupQuantizeEmbedding.from_embedding(node, self.config)
                 if isinstance(node, MixtralExperts):
                     weight_name = f"{name}.weight"
-                    self.quant_map.param_map[weight_name] = [
-                        f"{name}.q_weight",
-                        f"{name}.q_scale",
-                    ]
-                    self.quant_map.map_func[weight_name] = self.config.quantize_weight
+                    self.quant_map.param_map[weight_name] = [f"{name}.q_weight", f"{name}.q_scale"]
+                    self.quant_map.map_func[weight_name] = partial(
+                        self.config.quantize_weight,
+                        output_transpose=self.config.linear_weight_layout == "KN",
+                    )
                     return GroupQuantizeMixtralExperts.from_mixtral_experts(node, self.config)
                 return self.visit(name, node)
 
@@ -186,10 +183,7 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
         return te.compute(
             shape=out_shape,
             fcompute=lambda *idx: tir.multiply(
-                tir.subtract(
-                    float_weight(*idx),
-                    tir_max_int,
-                ),
+                tir.subtract(float_weight(*idx), tir_max_int),
                 scale(*idx[:axis], idx[axis] // self.group_size, *idx[axis + 1 :]),
             ),
             name="dequantize",
@@ -293,9 +287,7 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
             name="max_abs_value",
         )
         scale = te.compute(
-            scale_shape,
-            lambda *idx: max_abs(*idx).astype(self.model_dtype) / max_int,
-            name="scale",
+            scale_shape, lambda *idx: max_abs(*idx).astype(self.model_dtype) / max_int, name="scale"
         )
         # compute scaled weight
         scaled_weight = te.compute(
@@ -324,12 +316,16 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
             out_shape=quantized_weight_shape,
         )
         if output_transpose:
-            if len(quantized_weight.shape) != 2 or len(scale.shape) != 2:
+            if len(quantized_weight.shape) == 3 or len(scale.shape) == 3:
+                quantized_weight = topi.transpose(quantized_weight, axes=[0, 2, 1])
+                scale = topi.transpose(scale, axes=[0, 2, 1])
+            elif len(quantized_weight.shape) != 2 or len(scale.shape) != 2:
                 raise ValueError(
                     "Does not support transpose output quantized weight with ndim != 2"
                 )
-            quantized_weight = topi.transpose(quantized_weight)
-            scale = topi.transpose(scale)
+            else:
+                quantized_weight = topi.transpose(quantized_weight)
+                scale = topi.transpose(scale)
         return quantized_weight, scale
 
 
@@ -547,8 +543,7 @@ class GroupQuantizeEmbedding(nn.Module):
         if x.ndim == 1:
             return nn.op.take(w, x, axis=0)
         return nn.op.reshape(
-            nn.op.take(w, nn.op.reshape(x, shape=[-1]), axis=0),
-            shape=[*x.shape, self.dim],
+            nn.op.take(w, nn.op.reshape(x, shape=[-1]), axis=0), shape=[*x.shape, self.dim]
         )
 
     def lm_head_forward(self, x: nn.Tensor):
@@ -591,29 +586,33 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
     """An MixtralExperts module with group quantization"""
 
     def __init__(
-        self,
-        num_local_experts,
-        in_features,
-        out_features,
-        config: GroupQuantize,
+        self, num_local_experts, in_features, out_features, config: GroupQuantize
     ):  # pylint: disable=too-many-arguments
         self.num_local_experts = num_local_experts
         self.in_features = in_features
         self.out_features = out_features
         self.config = config
+        self.weight_layout = config.linear_weight_layout
         num_group = tir.ceildiv(in_features, config.group_size)
-        self.q_weight = nn.Parameter(
-            (num_local_experts, out_features, config.num_storage_per_group * num_group),
-            config.storage_dtype,
-        )
-        self.q_scale = nn.Parameter(
-            (num_local_experts, out_features, num_group), config.model_dtype
-        )
+        if config.linear_weight_layout == "KN":
+            self.q_weight = nn.Parameter(
+                (num_local_experts, config.num_storage_per_group * num_group, out_features),
+                config.storage_dtype,
+            )
+            self.q_scale = nn.Parameter(
+                (num_local_experts, num_group, out_features), config.model_dtype
+            )
+        else:
+            self.q_weight = nn.Parameter(
+                (num_local_experts, out_features, config.num_storage_per_group * num_group),
+                config.storage_dtype,
+            )
+            self.q_scale = nn.Parameter(
+                (num_local_experts, out_features, num_group), config.model_dtype
+            )
         self.quantize_dtype = config.quantize_dtype
         self.group_size = config.group_size
         self.dtype = config.model_dtype
-        if config.linear_weight_layout == "KN":
-            raise NotImplementedError("GroupQuantizeMixtralExperts does not support KN layout now.")
 
     @staticmethod
     def from_mixtral_experts(
@@ -678,6 +677,7 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
                 indptr,
                 quantize_dtype=self.quantize_dtype,
                 group_size=self.group_size,
+                weight_layout=self.weight_layout,
             )
         assert indptr.ndim == 1
         return moe_matmul.dequantize_group_gemm(
@@ -688,4 +688,5 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
             quantize_dtype=self.quantize_dtype,
             indptr_dtype=indptr.dtype,
             group_size=self.group_size,
+            weight_layout=self.weight_layout,
         )
