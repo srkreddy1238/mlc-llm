@@ -66,9 +66,9 @@ int ChatState::generate(const std::string& prompt, int max_tokens) {
   Message assistant_response;
   assistant_response.content["role"] = "assistant";
 
-  picojson::value val(output_text);
+  tvm::ffi::json::Value val(output_text);
 
-  std::string output_json_str = val.serialize();
+  std::string output_json_str = tvm::ffi::json::Stringify(val);
 
   assistant_response.content["content"] = output_json_str;
   history.push_back(assistant_response);

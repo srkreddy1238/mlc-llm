@@ -66,14 +66,14 @@ Function FunctionTable::SessionFuncAsPackedFunc(Session sess, DRef sess_func, St
 
 void FunctionTable::PrecompileShader(Module executable, Device device) {
   if (device.device_type == kDLOpenCL) {
-    auto f_get = executable.value()->GetFunction("opencl.GetPreCompiledPrograms", true);
+    auto f_get = executable->GetFunction("opencl.GetPreCompiledPrograms", true);
     TVM_FFI_ICHECK(f_get.defined()) << "Cannot find opencl.GetPreCompiledPrograms";
     tvm::ffi::String bytes = f_get.value()().cast<String>();
-    auto f_set = executable.value()->GetFunction("opencl.SetPreCompiledPrograms", true);
+    auto f_set = executable->GetFunction("opencl.SetPreCompiledPrograms", true);
     TVM_FFI_ICHECK(f_set.defined()) << "Cannot find opencl.SetPreCompiledPrograms";
     f_set.value()(tvm::ffi::String(bytes));
   } else if (device.device_type == kDLVulkan) {
-    auto f_set = executable.value()->GetFunction("precompiled_vulkan_pipeline", true);
+    auto f_set = executable->GetFunction("precompiled_vulkan_pipeline", true);
     TVM_FFI_ICHECK(f_set.defined()) << "Cannot find precompiled_vulkan_pipeline";
     bool success = f_set.value()().cast<bool>();
     TVM_FFI_ICHECK(success) << "Failed to set precompiled programs";

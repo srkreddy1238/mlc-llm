@@ -82,7 +82,6 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
 
   // TVM Global Function which generates the responses
   bool success = mod->GetFunction("chat_completion").value()(request_json, request_id).cast<bool>();
-
   if (!success) {
     std::cerr << "Failed to start chat completion" << std::endl;
   }
@@ -101,61 +100,49 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
       queue_cv->wait(lock, [this] { return !sync_queue.empty(); });
       std::string response = sync_queue.front();
       sync_queue.pop();
-
-      picojson::value v;
-
+      tvm::ffi::String err;
       // Parse the JSON
-      std::string err = picojson::parse(v, response);
-
+      auto v = tvm::ffi::json::Parse(response, &err);
       // Check for errors
       if (!err.empty()) {
         std::cerr << "JSON parsing error: " << err << std::endl;
       }
 
       // parsing successful, navigate through the array
-      picojson::array& arr = v.get<picojson::array>();
+      tvm::ffi::json::Array& arr = v.cast<tvm::ffi::json::Array>();
       for (auto& item : arr) {
-        picojson::object& obj = item.get<picojson::object>();
+        tvm::ffi::json::Object& obj = item.cast<tvm::ffi::json::Object>();
 
         // Extract 'delta' content if available
-        if (obj.find("choices") != obj.end() && !obj["choices"].get<picojson::array>().empty()) {
-          picojson::object& choices =
-              obj["choices"].get<picojson::array>()[0].get<picojson::object>();
-
-          if (!(choices["finish_reason"].is<picojson::null>())) {
-            // Get the finish reason
-            std::string finish_reason = choices["finish_reason"].get<std::string>();
-            if (finish_reason == "length") {
-              finish_reason = "length";
-            }
-          }
+        if (obj.find("choices") != obj.end() && !obj["choices"].cast<tvm::ffi::json::Array>().empty()) {
+          tvm::ffi::json::Object& choices =
+              obj["choices"].cast<tvm::ffi::json::Array>()[0].cast<tvm::ffi::json::Object>();
           if (choices.find("delta") != choices.end()) {
-            picojson::object& delta = choices["delta"].get<picojson::object>();
+            tvm::ffi::json::Object& delta = choices["delta"].cast<tvm::ffi::json::Object>();
             if (delta.find("content") != delta.end()) {
-              std::string content = delta["content"].get<std::string>();
+              std::string content = delta["content"].cast<std::string>();
 
               std::cout << content << std::flush;
               output += content;
             }
           }
         }
-
         // Extract 'usage' details if available
         if (obj.find("usage") != obj.end()) {
           last_chunk_arrived = true;
           std::cout << std::endl;
-          picojson::object& usage = obj["usage"].get<picojson::object>();
+          tvm::ffi::json::Object& usage = obj["usage"].cast<tvm::ffi::json::Object>();
 
           // Access the 'usage' details
-          double prompt_tokens = usage["prompt_tokens"].get<double>();
-          double completion_tokens = usage["completion_tokens"].get<double>();
-          double total_tokens = usage["total_tokens"].get<double>();
+          double prompt_tokens = usage["prompt_tokens"].cast<double>();
+          double completion_tokens = usage["completion_tokens"].cast<double>();
+          double total_tokens = usage["total_tokens"].cast<double>();
 
           // Access the 'extra' details
-          picojson::object& extra = usage["extra"].get<picojson::object>();
-          double prefill_tokens_per_s = extra["prefill_tokens_per_s"].get<double>();
-          double decode_tokens_per_s = extra["decode_tokens_per_s"].get<double>();
-          double end_to_end_latency_s = extra["end_to_end_latency_s"].get<double>();
+          tvm::ffi::json::Object& extra = usage["extra"].cast<tvm::ffi::json::Object>();
+          double prefill_tokens_per_s = extra["prefill_tokens_per_s"].cast<double>();
+          double decode_tokens_per_s = extra["decode_tokens_per_s"].cast<double>();
+          double end_to_end_latency_s = extra["end_to_end_latency_s"].cast<double>();
 
           // fill the stats details
           this->decode_tokens_per_s = decode_tokens_per_s;
@@ -306,7 +293,6 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
   } else if (mode == "server") {
     (*engine_config)->mode = EngineMode::kServer;
   }
-
   const std::string file_path = model_path + "/mlc-chat-config.json";
   std::ifstream file(file_path);
   if (!file.is_open()) {
@@ -318,18 +304,16 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
                              std::istreambuf_iterator<char>());
 
   // Parse the JSON object
-  picojson::value config_object;
-  std::string err;
-  picojson::parse(config_object, config_content.begin(), config_content.end(), &err);
+  tvm::ffi::String err;
+  auto config_object = tvm::ffi::json::Parse(config_content, &err);
   if (!err.empty()) {
     std::cerr << "Error: Unable to parse the JSON object: " << err << std::endl;
   }
-
   // Accessing the parsed data
-  if (config_object.is<picojson::object>()) {
-    const picojson::object& model_config = config_object.get<picojson::object>();
+  if (config_object.try_cast<tvm::ffi::json::Object>()) {
+    const tvm::ffi::json::Object& model_config = config_object.cast<tvm::ffi::json::Object>();
     if (model_config.find("prefill_chunk_size") != model_config.end()) {
-      double prefill_chunk_size = model_config.at("prefill_chunk_size").get<double>();
+      double prefill_chunk_size = model_config.at("prefill_chunk_size").cast<double>();
       (*engine_config)->prefill_chunk_size = prefill_chunk_size;
     } else {
       std::cerr << "Error: 'prefill_chunk_size' not found in the JSON object" << std::endl;
@@ -342,7 +326,6 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
 
   // Typecasting to the TVM Packed Function
   auto tvm_callback = TypedFunction<void(std::string)>(call_back);
-
   // Call to Initialise Background Engine
   mod.value()
       ->GetFunction("init_background_engine")
@@ -350,7 +333,6 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
   std::string engine_config_json_str{(*engine_config)->AsJSONString()};
   // Call to Reload Function of JSONFFIEngineImpl
   mod.value()->GetFunction("reload").value()(engine_config_json_str);
-
   chat = std::make_shared<Chat>(engine_state, mod.value());
 }
 

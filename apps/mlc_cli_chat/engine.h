@@ -7,7 +7,7 @@
 #define MLC_CLI_CHAT_ENGINE_H
 
 #include <json_ffi/json_ffi_engine.h>
-#include <picojson.h>
+#include <tvm/ffi/extra/json.h>
 #include <tvm/runtime/module.h>
 
 #include <condition_variable>
