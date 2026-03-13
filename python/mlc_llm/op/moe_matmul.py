@@ -168,15 +168,15 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
     ):
         T.func_attr({"op_pattern": 4, "tir.noalias": True})  # kOutEWiseFusable
         for expert_id in T.thread_binding(experts_per_tok, thread="blockIdx.y"):
-            with T.block("gemv_o"):
+            with T.sblock("gemv_o"):
                 e = T.axis.spatial(experts_per_tok, expert_id)
                 y = T.alloc_buffer((out_features, in_features), model_dtype)
                 for i1, i2 in T.grid(out_features, in_features):
-                    with T.block("dequantize"):
+                    with T.sblock("dequantize"):
                         i, j = T.axis.remap("SS", [i1, i2])
                         y[i, j] = _dequantize(w, scale, indptr[0, e], i, j)
                 for i1, i2 in T.grid(out_features, in_features):
-                    with T.block("gemv"):
+                    with T.sblock("gemv"):
                         i, j = T.axis.remap("SR", [i1, i2])
                         with T.init():
                             o[e, i] = T.cast(T.float16(0), model_dtype)
@@ -686,7 +686,7 @@ def dequantize_group_gemm(
         X = T.match_buffer(var_x, (B, K), model_dtype)
         O = T.match_buffer(var_o, (B, N), model_dtype)
         for _bx in T.thread_binding(CTA_COUNT, thread="blockIdx.x"):
-            with T.block("CTA"):
+            with T.sblock("CTA"):
                 bx = T.axis.spatial(CTA_COUNT, _bx)
                 T.reads(X[:, :], w[:, :, :], scale[:, :, :], indptr[:])
                 T.writes(O[:, :])
@@ -721,7 +721,7 @@ def dequantize_group_gemm(
                         num_tiles = tile_id[0] - sum[0]
                         m_offset = T.floordiv(num_tiles, tiles_per_row) * BLK_M + row[0]
                         n_offset = T.floormod(num_tiles, tiles_per_row) * BLK_N
-                        with T.block("gemm"):
+                        with T.sblock("gemm"):
                             T.reads(
                                 row[1],
                                 X[m_offset : m_offset + BLK_M, :],
@@ -733,13 +733,13 @@ def dequantize_group_gemm(
                             W_tile = T.alloc_buffer((BLK_N, K), model_dtype, scope="shared")
                             O_tile = T.alloc_buffer((BLK_M, BLK_N), "float32", scope="local")
                             for a0, a1 in T.grid(BLK_M, K):
-                                with T.block("X_shared"):
+                                with T.sblock("X_shared"):
                                     i, j = T.axis.remap("SS", [a0, a1])
                                     X_tile[i, j] = T.if_then_else(
                                         m_offset + i < row[1], X[m_offset + i, j], zero
                                     )
                             for a0, a1 in T.grid(BLK_N, K):
-                                with T.block("W_shared"):
+                                with T.sblock("W_shared"):
                                     i, j = T.axis.remap("SS", [a0, a1])
                                     W_tile[i, j] = T.if_then_else(
                                         n_offset + i < N,
@@ -747,13 +747,13 @@ def dequantize_group_gemm(
                                         zero,
                                     )
                             for a0, a1, a2 in T.grid(BLK_M, BLK_N, K):
-                                with T.block("compute"):
+                                with T.sblock("compute"):
                                     i, j, k = T.axis.remap("SSR", [a0, a1, a2])
                                     with T.init():
                                         O_tile[i, j] = zero
                                     O_tile[i, j] += X_tile[i, k] * W_tile[j, k]
                             for a0, a1 in T.grid(BLK_M, BLK_N):
-                                with T.block("store"):
+                                with T.sblock("store"):
                                     i, j = T.axis.remap("SS", [a0, a1])
                                     if m_offset + i < row[1] and n_offset + j < N:
                                         O[m_offset + i, n_offset + j] = O_tile[i, j]
@@ -854,9 +854,9 @@ def dequantize_group_gemm(
 
     def _schedule():
         if weight_layout == "KN":
-            sch = tir.Schedule(_func_kn)
+            sch = s_tir.Schedule(_func_kn)
         else:
-            sch = tir.Schedule(_func_nk)
+            sch = s_tir.Schedule(_func_nk)
 
         main_block = sch.get_sblock("compute")
         x, y, k = sch.get_loops(main_block)
@@ -869,7 +869,7 @@ def dequantize_group_gemm(
         sch.vectorize(vec_c)
         sch.unroll(xi)
 
-        inp_blk = sch.get_block("X_shared")
+        inp_blk = sch.get_sblock("X_shared")
         sch.compute_at(inp_blk, k0)
         x, y = sch.get_loops(inp_blk)[-2:]
         tx, xi = sch.split(x, [TX, None])
@@ -879,7 +879,7 @@ def dequantize_group_gemm(
         sch.bind(tx, "threadIdx.x")
         sch.vectorize(vec_c)
 
-        dequant_block = sch.get_block("W_shared")
+        dequant_block = sch.get_sblock("W_shared")
         sch.compute_at(dequant_block, k3)
         sch.set_scope(dequant_block, 0, "local")
         yy = sch.get_loops(dequant_block)[-1]
@@ -893,7 +893,7 @@ def dequantize_group_gemm(
             sch.annotate(tx, ann_key="pragma_auto_unroll_max_step", ann_val=UNROLL)
             sch.annotate(tx, ann_key="pragma_unroll_explicit", ann_val=1)
 
-        l2g = sch.get_block("store")
+        l2g = sch.get_sblock("store")
         x, y = sch.get_loops(l2g)
         yi, ty, vec_c = sch.split(y, [None, TY, VEC_O])
         tx, xi = sch.split(x, [TX, None])
