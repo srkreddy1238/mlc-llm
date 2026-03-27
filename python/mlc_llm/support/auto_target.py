@@ -481,6 +481,8 @@ PRESET = {
             "supports_8bit_buffer": True,
             "supports_16bit_buffer": True,
             "supports_storage_buffer_storage_class": True,
+            "supports_khr_cooperative_matrix": True,
+            "supports_qcom_cooperative_matrix_conversion": True,
             "host": {
                 "kind": "llvm",
                 "mtriple": "aarch64-linux-android",
@@ -524,6 +526,8 @@ PRESET = {
             "supports_8bit_buffer": True,
             "supports_16bit_buffer": True,
             "supports_storage_buffer_storage_class": True,
+            "supports_khr_cooperative_matrix": True,
+            "supports_qcom_cooperative_matrix_conversion": True,
             "host": {
                 "kind": "llvm",
                 "mtriple": "x86_64-pc-windows-msvc",
@@ -544,6 +548,8 @@ PRESET = {
             "supports_8bit_buffer": True,
             "supports_16bit_buffer": True,
             "supports_storage_buffer_storage_class": True,
+            "supports_khr_cooperative_matrix": True,
+            "supports_qcom_cooperative_matrix_conversion": True,
             "host": {
                 "kind": "llvm",
                 "mtriple": "aarch64-pc-windows-msvc",
