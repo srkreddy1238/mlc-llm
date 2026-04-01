@@ -109,17 +109,17 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
       }
 
       // parsing successful, navigate through the array
-      tvm::ffi::json::Array& arr = v.cast<tvm::ffi::json::Array>();
+      auto arr = v.cast<tvm::ffi::json::Array>();
       for (auto& item : arr) {
-        tvm::ffi::json::Object& obj = item.cast<tvm::ffi::json::Object>();
+        auto obj = item.cast<tvm::ffi::json::Object>();
 
         // Extract 'delta' content if available
         if (obj.find("choices") != obj.end() &&
             !obj["choices"].cast<tvm::ffi::json::Array>().empty()) {
-          tvm::ffi::json::Object& choices =
+          auto choices =
               obj["choices"].cast<tvm::ffi::json::Array>()[0].cast<tvm::ffi::json::Object>();
           if (choices.find("delta") != choices.end()) {
-            tvm::ffi::json::Object& delta = choices["delta"].cast<tvm::ffi::json::Object>();
+            auto delta = choices["delta"].cast<tvm::ffi::json::Object>();
             if (delta.find("content") != delta.end()) {
               std::string content = delta["content"].cast<std::string>();
 
@@ -132,7 +132,7 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
         if (obj.find("usage") != obj.end()) {
           last_chunk_arrived = true;
           std::cout << std::endl;
-          tvm::ffi::json::Object& usage = obj["usage"].cast<tvm::ffi::json::Object>();
+          auto usage = obj["usage"].cast<tvm::ffi::json::Object>();
 
           // Access the 'usage' details
           double prompt_tokens = usage["prompt_tokens"].cast<double>();
@@ -140,7 +140,7 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
           double total_tokens = usage["total_tokens"].cast<double>();
 
           // Access the 'extra' details
-          tvm::ffi::json::Object& extra = usage["extra"].cast<tvm::ffi::json::Object>();
+          auto extra = usage["extra"].cast<tvm::ffi::json::Object>();
           double prefill_tokens_per_s = extra["prefill_tokens_per_s"].cast<double>();
           double decode_tokens_per_s = extra["decode_tokens_per_s"].cast<double>();
           double end_to_end_latency_s = extra["end_to_end_latency_s"].cast<double>();
