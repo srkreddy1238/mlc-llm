@@ -6,11 +6,10 @@ from typing import Any, Dict, List, Optional
 import tvm
 from tvm import IRModule
 from tvm.relax import register_pipeline  # pylint: disable=no-name-in-module
-from tvm.relax.frontend import nn
-from tvm.s_tir import dlight as dl
 from tvm.relax.backend.adreno.clml import OpenCLMLOffLoadForLLM
 from tvm.relax.backend.contrib.adrenoaccl import PartitionForAdrenoACCL
 from tvm.relax.frontend import nn
+from tvm.s_tir import dlight as dl
 
 from mlc_llm.interface.compiler_flags import IPCAllReduceStrategyType
 from mlc_llm.support import logging
