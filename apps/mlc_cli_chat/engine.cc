@@ -114,7 +114,8 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
         tvm::ffi::json::Object& obj = item.cast<tvm::ffi::json::Object>();
 
         // Extract 'delta' content if available
-        if (obj.find("choices") != obj.end() && !obj["choices"].cast<tvm::ffi::json::Array>().empty()) {
+        if (obj.find("choices") != obj.end() &&
+            !obj["choices"].cast<tvm::ffi::json::Array>().empty()) {
           tvm::ffi::json::Object& choices =
               obj["choices"].cast<tvm::ffi::json::Array>()[0].cast<tvm::ffi::json::Object>();
           if (choices.find("delta") != choices.end()) {
