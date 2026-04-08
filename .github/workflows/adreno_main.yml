@@ -121,6 +121,8 @@ jobs:
         shell: bash -l {0}
         run: |
            set -e
+           which rustc
+           rustup show
            source $VULKAN_SDK_PATH/setup-env.sh
            mkdir -p build-arm64 && cd build-arm64
            echo set\(TVM_HOME 3rdparty/tvm\) >> config.cmake
