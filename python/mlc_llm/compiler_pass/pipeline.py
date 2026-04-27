@@ -133,7 +133,6 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
                     if target.kind.name != "llvm"
                     else tvm.transform.Sequential([])
                 ),
-                FuseTransposeMatmul(),
                 # Adreno_Accl BYOC offloading.
                 (
                     PartitionForAdrenoACCL(target=target)
@@ -146,6 +145,7 @@ def _mlc_llm_pipeline(  # pylint: disable=too-many-arguments
                     if openclml
                     else tvm.transform.Sequential([])
                 ),
+                FuseTransposeMatmul(),
                 _DebugDump("debug-phase1.py", debug_dump, show_meta=False),
                 # Phase 2. Lowering to TIR, inherited TVM Relax's official "zero" pipeline
                 _LogProgress("Lowering to TVM TIR kernels"),

@@ -93,7 +93,7 @@ jobs:
            echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
-           cmake .. && cmake --build . --parallel $(nproc) && cd ..
+           cmake .. -G Ninja && cmake --build . --parallel $(nproc) && cd ..
       - name: Compile TVM
         shell: bash -l {0}
         run: |
@@ -105,7 +105,7 @@ jobs:
            echo set\(USE_LLVM $LLVM_CONFIG\) >> config.cmake;
            echo set\(USE_CUDA ON\) >> config.cmake;
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
-           cmake .. && cmake --build . --parallel $(nproc); cd -
+           cmake .. -G Ninja && cmake --build . --parallel $(nproc); cd -
       - name: Check Build Status
         shell: bash -l {0}
         run: |
@@ -115,7 +115,7 @@ jobs:
            export PATH=$CUDA_PATH/bin:$PATH
            # SKBUILD_SKIP_BUILD=1 python3 -m build --wheel --outdir mlc_artefacts
            python -m pip uninstall apache-tvm-ffi -y
-           python3 -m pip install  -v --target=python ./3rdparty/tvm/3rdparty/tvm-ffi/
+           CMAKE_GENERATOR=Ninja python3 -m pip install  -v --target=python ./3rdparty/tvm/3rdparty/tvm-ffi/
            python -c "import mlc_llm; print(mlc_llm.__path__)"
       - name: Build LLM Models
         shell: bash -l {0}
@@ -164,7 +164,7 @@ jobs:
                  -DCMAKE_CXX_COMPILER="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++" \
                  -DCMAKE_C_COMPILER="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang" \
                  -DMACHINE_NAME="aarch64-linux-gnu" \
-                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64 ..
+                 -DCMAKE_INSTALL_PREFIX=./mlc_llm-utils-linux-arm64 .. -G Ninja
            cmake --build . --parallel $(nproc) --target install
            cp lib/* mlc_llm-utils-linux-arm64/lib/.
            rm -rf `find mlc_llm-utils-linux-arm64 -name "*.a"`
@@ -172,8 +172,9 @@ jobs:
            cp ${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so mlc_llm-utils-linux-arm64/lib/.
            cd ..
            sh ci/task/test_adreno_models.sh `cat /etc/mlc-device` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
-           sh ci/task/test_vk-adreno_models.sh `cat /etc/tvm-ci-device-coop` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID        
-           
+           # sh ci/task/test_adreno_models_v5.sh `cat /etc/mlc-device-v5` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
+           sh ci/task/test_adreno_models_v5-qcom.sh `cat /etc/tvm-ci-device-coop` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
+
   MLC-Build-Windows:
     # needs: [MLC-Build-Linux]
     if: ${{ github.repository == 'gpgpu/mlc-llm' }}
@@ -320,8 +321,9 @@ jobs:
            C:\ProgramData\anaconda3\shell\condabin\conda-hook.ps1
            conda activate mlc-device-test
            pip list
+           python -m pip uninstall apache-tvm-ffi -y
            pip uninstall tvm -y
-           pip uninstall mlc -y
+           pip uninstall mlc_llm -y
            pip list
            foreach ($i in Get-ChildItem -Path "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/*.whl" ) {pip install $i}
            pip list

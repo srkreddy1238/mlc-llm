@@ -16,7 +16,7 @@
 	branch = relax
 [submodule "tokenizers-cpp"]
 	path = 3rdparty/tokenizers-cpp
-	url = https://github.qualcomm.com/gpgpu/tokenizers-cpp.git
+	url = https://github.com/mlc-ai/tokenizers-cpp.git
 [submodule "clscope-profiler"]
 	path = 3rdparty/clscope-profiler
 	url = https://github.qualcomm.com/gpgpu/clscope-profiler.git

@@ -60,6 +60,13 @@ function build-model {
     $global:LASTEXITCODE = 0
     Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:vk-adreno_arm64 -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-vulkan-adreno-arm64.dll" -ErrorAction "Stop"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    $global:LASTEXITCODE = 0
+    Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:vk-qcom-adreno_x86 -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-vulkan-qcom-adreno-x86.dll" -ErrorAction "Stop"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    # Compile the model for Adreno arm64
+    $global:LASTEXITCODE = 0
+    Invoke-Expression -Command "python -m mlc_llm compile ${MODEL_ARTIFACTS_PATH}/dist/${model}-${quantization}-MLC/mlc-chat-config.json --device windows:vk-qcom-adreno_arm64 -o ${MODEL_ARTIFACTS_PATH}/dist/libs/${model}-${quantization}-vulkan-qcom-adreno-arm64.dll" -ErrorAction "Stop"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 
     if ( $CLML -eq "1") {
@@ -86,10 +93,7 @@ build-model phi-2 q4f16_0 phi-2 "--prefill-chunk-size 256 --context-window-size 
 build-model Phi-3-mini-4k-instruct q4f16_0 phi-3 "--prefill-chunk-size 256 --context-window-size 4096"
 build-model Phi-3.5-mini-instruct q4f16_0 phi-3 "--prefill-chunk-size 256 --context-window-size 4096"
 build-model llava-1.5-7b-hf q4f16_0 llava "--prefill-chunk-size 256 --context-window-size 4096"
-#build-model Baichuan-7B q4f16_0 chatml "--model-type baichuan --prefill-chunk-size 256 --context-window-size 4096"
-
 build-model DeepSeek-R1-Distill-Qwen-1.5B q4f16_0 deepseek_r1_qwen "--prefill-chunk-size 256 --context-window-size 4096"
 build-model DeepSeek-R1-Distill-Llama-8B q4f16_0 deepseek_r1_llama "--prefill-chunk-size 256 --context-window-size 4096"
-#build-model DeepSeek-R1-Distill-Qwen-7B q4f16_0 deepseek_r1_qwen "--prefill-chunk-size 256 --context-window-size 4096"
 
 #Remove-Item -Path "./dist" -Recurse -Force
