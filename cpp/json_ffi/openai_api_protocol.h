@@ -136,6 +136,7 @@ class ChatCompletionRequest {
   int top_logprobs = 0;
   std::optional<std::vector<std::pair<int, float>>> logit_bias = std::nullopt;
   std::optional<int> max_tokens = std::nullopt;
+  std::optional<int> max_prompt_length = std::nullopt;  // truncate prompt tokens to this limit
   int n = 1;
   std::optional<int> seed = std::nullopt;
   std::optional<std::vector<std::string>> stop = std::nullopt;

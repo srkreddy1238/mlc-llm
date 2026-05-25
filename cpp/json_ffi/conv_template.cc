@@ -3,6 +3,7 @@
 #include <tvm/ffi/function.h>
 
 #include "../support/json_parser.h"
+#include "../tokenizers/tokenizers.h"
 #include "image_utils.h"
 
 namespace mlc {
@@ -372,6 +373,127 @@ Result<std::vector<Data>> CreatePrompt(const Conversation& conv,
     message_list.insert(message_list.begin(), TokenData(conv.system_prefix_token_ids.value()));
   }
   return TResult::Ok(message_list);
+}
+
+Array<Data> TruncatePromptToTokenLimit(const Array<Data>& inputs, const Tokenizer& tokenizer,
+                                       int max_prompt_length) {
+  constexpr int kProtectedTailTokens = 32;
+
+  if (max_prompt_length <= 0) {
+    return inputs;
+  }
+
+  int total_tokens = 0;
+  for (const Data& seg : inputs) {
+    if (const auto* td = seg.as<TextDataNode>()) {
+      total_tokens += static_cast<int>(tokenizer->Encode(td->text).size());
+    } else if (const auto* tkd = seg.as<TokenDataNode>()) {
+      total_tokens += static_cast<int>(tkd->token_ids.size());
+    } else if (const auto* imgd = seg.as<ImageDataNode>()) {
+      total_tokens += imgd->embed_size;
+    }
+  }
+
+  if (total_tokens <= max_prompt_length) {
+    return inputs;
+  }
+
+  int tokens_to_drop = total_tokens - max_prompt_length;
+  int protected_tail = std::min(kProtectedTailTokens, max_prompt_length);
+
+  std::vector<int> seg_token_counts(inputs.size());
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    if (const auto* td = inputs[i].as<TextDataNode>()) {
+      seg_token_counts[i] = static_cast<int>(tokenizer->Encode(td->text).size());
+    } else if (const auto* tkd = inputs[i].as<TokenDataNode>()) {
+      seg_token_counts[i] = static_cast<int>(tkd->token_ids.size());
+    } else if (const auto* imgd = inputs[i].as<ImageDataNode>()) {
+      seg_token_counts[i] = imgd->embed_size;
+    }
+  }
+
+  int tail_accumulated = 0;
+  int tail_start_seg = static_cast<int>(inputs.size());
+  int tail_start_seg_offset = 0;
+
+  for (int i = static_cast<int>(inputs.size()) - 1; i >= 0; --i) {
+    int seg_count = seg_token_counts[i];
+    if (tail_accumulated >= protected_tail) {
+      break;
+    }
+    int still_needed = protected_tail - tail_accumulated;
+    if (seg_count <= still_needed) {
+      tail_accumulated += seg_count;
+      tail_start_seg = i;
+      tail_start_seg_offset = 0;
+    } else {
+      tail_accumulated += still_needed;
+      tail_start_seg = i;
+      tail_start_seg_offset = seg_count - still_needed;
+    }
+  }
+
+  std::vector<int> keep_tokens(inputs.size());
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    keep_tokens[i] = seg_token_counts[i];
+  }
+
+  int remaining_to_drop = tokens_to_drop;
+
+  if (tail_start_seg < static_cast<int>(inputs.size()) && tail_start_seg_offset > 0) {
+    int drop_here = std::min(remaining_to_drop, tail_start_seg_offset);
+    keep_tokens[tail_start_seg] = seg_token_counts[tail_start_seg] - drop_here;
+    remaining_to_drop -= drop_here;
+  }
+
+  for (int i = tail_start_seg - 1; i >= 0 && remaining_to_drop > 0; --i) {
+    int seg_count = seg_token_counts[i];
+    if (remaining_to_drop >= seg_count) {
+      keep_tokens[i] = 0;
+      remaining_to_drop -= seg_count;
+    } else {
+      keep_tokens[i] = seg_count - remaining_to_drop;
+      remaining_to_drop = 0;
+    }
+  }
+
+  Array<Data> result;
+  for (size_t i = 0; i < inputs.size(); ++i) {
+    int keep = keep_tokens[i];
+    if (keep == 0) continue;
+
+    if (const auto* td = inputs[i].as<TextDataNode>()) {
+      if (keep == seg_token_counts[i]) {
+        result.push_back(inputs[i]);
+      } else {
+        std::vector<int32_t> ids = tokenizer->Encode(td->text);
+        if (static_cast<int>(i) == tail_start_seg && tail_start_seg_offset > 0) {
+          int drop_front = static_cast<int>(ids.size()) - keep;
+          ids.erase(ids.begin(), ids.begin() + drop_front);
+        } else {
+          ids.resize(static_cast<size_t>(keep));
+        }
+        result.push_back(TextData(tokenizer->Decode(ids)));
+      }
+    } else if (const auto* tkd = inputs[i].as<TokenDataNode>()) {
+      if (keep == seg_token_counts[i]) {
+        result.push_back(inputs[i]);
+      } else {
+        std::vector<int32_t> ids(tkd->token_ids.begin(), tkd->token_ids.end());
+        if (static_cast<int>(i) == tail_start_seg && tail_start_seg_offset > 0) {
+          int drop_front = static_cast<int>(ids.size()) - keep;
+          ids.erase(ids.begin(), ids.begin() + drop_front);
+        } else {
+          ids.resize(static_cast<size_t>(keep));
+        }
+        IntTuple kept_ids(ids.begin(), ids.end());
+        result.push_back(TokenData(kept_ids));
+      }
+    } else {
+      result.push_back(inputs[i]);
+    }
+  }
+  return result;
 }
 
 Result<Conversation> Conversation::FromJSON(const tvm::ffi::json::Object& json_obj) {

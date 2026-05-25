@@ -85,6 +85,11 @@ bool JSONFFIEngine::AddRequest(std::string request_json_str, std::string request
     }
     inputs = inputs_obj.Unwrap();
 
+    // Truncate prompt tokens if the caller specified a limit.
+    if (request.max_prompt_length.has_value() && request.max_prompt_length.value() > 0) {
+      inputs = TruncatePromptToTokenLimit(inputs, tokenizer_, request.max_prompt_length.value());
+    }
+
     stop_strs.reserve(this->conv_template_.stop_str.size());
     for (const std::string& stop_str : this->conv_template_.stop_str) {
       stop_strs.push_back(stop_str);

@@ -71,7 +71,7 @@ std::function<void(const std::string&)> EngineStateCli::get_request_stream_callb
 
 std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::string& request_json,
                                                    bool include_usage,
-                                                   const std::string& request_id) {
+                                                   const std::string& request_id, bool silent) {
   // Clear the queue making sure that queue is empty
   // Not really required since this process should ideally make the queue empty
   {
@@ -79,7 +79,6 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
     std::queue<std::string> empty;
     std::swap(sync_queue, empty);
   }
-
   // TVM Global Function which generates the responses
   bool success = mod->GetFunction("chat_completion").value()(request_json, request_id).cast<bool>();
   if (!success) {
@@ -123,7 +122,7 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
             if (delta.find("content") != delta.end()) {
               std::string content = delta["content"].cast<std::string>();
 
-              std::cout << content << std::flush;
+              if (!silent) std::cout << content << std::flush;
               output += content;
             }
           }
@@ -131,7 +130,7 @@ std::string EngineStateCli::handle_chat_completion(ffi::Module mod, const std::s
         // Extract 'usage' details if available
         if (obj.find("usage") != obj.end()) {
           last_chunk_arrived = true;
-          std::cout << std::endl;
+          if (!silent) std::cout << std::endl;
           auto usage = obj["usage"].cast<tvm::ffi::json::Object>();
 
           // Access the 'usage' details
@@ -216,7 +215,8 @@ inline std::string Completions::GenerateUUID(size_t length) {
   return str;
 }
 
-std::string Completions::create(std::vector<Message>& messages, int max_tokens) {
+std::string Completions::create(std::vector<Message>& messages, int max_tokens,
+                                int max_prompt_length, bool silent) {
   std::string request_id{""};
   // Method to generate random string
   std::string generate_random_string{GenerateUUID(16)};
@@ -227,16 +227,19 @@ std::string Completions::create(std::vector<Message>& messages, int max_tokens) 
   std::string history_string{""};
   std::string left_braces{"{"};
   std::string right_braces{"}"};
-
   std::string prompt = messagesToString(messages);
   std::string jsonStart = R"({)";
   std::string message_str = R"("messages":[)" + prompt + R"(])";
   std::string max_token_str = R"(, "max_tokens":)" + std::to_string(max_tokens);
+  std::string max_prompt_length_str =
+      (max_prompt_length > 0) ? (R"(, "max_prompt_length":)" + std::to_string(max_prompt_length))
+                              : "";
   std::string jsonEnd = R"(})";
 
-  std::string request_str = jsonStart + message_str + max_token_str + jsonEnd;
+  std::string request_str =
+      jsonStart + message_str + max_token_str + max_prompt_length_str + jsonEnd;
   std::string output_res =
-      engine_state->handle_chat_completion(__mod, request_str, true, request_id);
+      engine_state->handle_chat_completion(__mod, request_str, true, request_id, silent);
   return output_res;
 }
 
@@ -261,7 +264,9 @@ DLDeviceType GetDevice(std::string device) {
 }
 
 JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string model_lib_path,
-                                           std::string mode, std::string device, int device_id = 0)
+                                           std::string mode, std::string device, int device_id = 0,
+                                           int prefill_chunk_size = -1,
+                                           int context_window_size = -1)
     : chat(nullptr),
       engine_config(nullptr),
       mod(std::nullopt),  // not constructed yet
@@ -313,12 +318,16 @@ JSONFFIEngineWrapper::JSONFFIEngineWrapper(std::string model_path, std::string m
   // Accessing the parsed data
   if (config_object.try_cast<tvm::ffi::json::Object>()) {
     const tvm::ffi::json::Object& model_config = config_object.cast<tvm::ffi::json::Object>();
-    if (model_config.find("prefill_chunk_size") != model_config.end()) {
-      double prefill_chunk_size = model_config.at("prefill_chunk_size").cast<double>();
-      (*engine_config)->prefill_chunk_size = prefill_chunk_size;
-    } else {
-      std::cerr << "Error: 'prefill_chunk_size' not found in the JSON object" << std::endl;
+    if (context_window_size == -1 &&
+        model_config.find("context_window_size") != model_config.end()) {
+      context_window_size = model_config.at("context_window_size").cast<double>();
     }
+    if (prefill_chunk_size == -1 && model_config.find("prefill_chunk_size") != model_config.end()) {
+      prefill_chunk_size = model_config.at("prefill_chunk_size").cast<double>();
+    }
+    (*engine_config)->prefill_chunk_size = prefill_chunk_size;
+    (*engine_config)->max_total_sequence_length = context_window_size;
+    (*engine_config)->max_single_sequence_length = context_window_size;
   } else {
     std::cerr << "Error: Invalid JSON format" << std::endl;
   }

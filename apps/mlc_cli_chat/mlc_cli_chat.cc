@@ -65,8 +65,11 @@ struct Args {
   bool evaluate = false;
   int eval_prompt_len = 128;
   int max_tokens = -1;
+  int max_prompt_length = -1;  // -1 means no truncation
   std::string prompt;
   int repeat = 1;
+  int context_window_size = -1;
+  int prefill_chunk_size = -1;
   // New field to carry a file path if provided
   std::string prompt_file;
 };
@@ -88,10 +91,20 @@ void printHelp() {
       << "  --with-prompt       [optional] runs one session with given prompt\n"
       << "  --max-tokens        [optional] generate given number of token [default: -1 "
          "(infinite)]\n"
+      << "  --context-window-size        [optional] Max sequence length allowed to be processed "
+         "[default: -1 "
+         "(infinite)]\n"
+      << "  --prefill-chunk-size        [optional] Prefill chunk size to run model in batch "
+         "[default: -1 "
+         "(infinite)]\n"
       << "  --repeat            [optional] Repeat the application with desire interation (default "
          "1) "
          "by reseting history. it is ignore for chat mode."
       << "  --with-prompt-file <path>  [optional] read prompt from a text file\n"
+      << "  --max-prompt-length [optional] truncate the tokenized prompt to this many tokens "
+         "before sending to the model [default: -1 (no truncation)]\n"
+      << "  --context-window-size [optional] max seqence allowed to be processed by the model"
+         "before sending to the model [default: -1 (no truncation)]\n"
       << "  --help              [optional] Tool usage information\n"
       /*
       << "  --evaluate          (flag, default: false)\n"
@@ -119,18 +132,23 @@ Args parseArgs(int argc, char* argv[]) {
       args.evaluate = true;
     } else if (arguments[i] == "--max-tokens" && i + 1 < arguments.size()) {
       args.max_tokens = std::stoi(arguments[++i]);
+    } else if (arguments[i] == "--context-window-size" && i + 1 < arguments.size()) {
+      args.context_window_size = std::stoi(arguments[++i]);
+    } else if (arguments[i] == "--prefill-chunck-size" && i + 1 < arguments.size()) {
+      args.prefill_chunk_size = std::stoi(arguments[++i]);
     } else if (arguments[i] == "--repeat" && i + 1 < arguments.size()) {
       args.repeat = std::stoi(arguments[++i]);
     } else if (arguments[i] == "--with-prompt" && i + 1 < arguments.size()) {
       args.prompt = arguments[++i];
     } else if (arguments[i].rfind("--with-prompt=", 0) == 0) {
       args.prompt = arguments[i].substr(std::string("--with-prompt=").size());
-    }
-    // New flag forms for file ===
-    else if (arguments[i] == "--with-prompt-file" && i + 1 < arguments.size()) {
-      args.prompt_file = arguments[++i];
     } else if (arguments[i].rfind("--with-prompt-file=", 0) == 0) {
       args.prompt_file = arguments[i].substr(std::string("--with-prompt-file=").size());
+    } else if (arguments[i] == "--max-prompt-length" && i + 1 < arguments.size()) {
+      args.max_prompt_length = std::stoi(arguments[++i]);
+    } else if (arguments[i].rfind("--max-prompt-length=", 0) == 0) {
+      args.max_prompt_length =
+          std::stoi(arguments[i].substr(std::string("--max-prompt-length=").size()));
     } else if (arguments[i] == "--help") {
       printHelp();
       exit(0);
@@ -196,7 +214,11 @@ int main(int argc, char* argv[]) {
   // mode of interaction
   std::string mode{"interactive"};
 
-  ChatState chat_state(model_path, model_lib_path, mode, device_name, 0);
+  ChatState chat_state(model_path, model_lib_path, mode, device_name, 0, args.prefill_chunk_size,
+                       args.context_window_size);
 
-  return chat_state.chat(args.prompt, args.max_tokens, args.repeat);
+  chat_state.chat(args.prompt, args.max_tokens, args.repeat, args.max_prompt_length);
+
+  exit(0);
+  return 0;
 }

@@ -9,7 +9,8 @@ ConvTemplateRegistry.register_conv_template(
     Conversation(
         name="phi-2",
         system_template=f"{MessagePlaceholders.SYSTEM.value}",
-        system_message="",
+        system_message="You are a helpful digital assistant. Please provide safe, "
+        "ethical and accurate information to the user.",
         roles={"user": "Instruct", "assistant": "Output"},
         seps=["\n"],
         role_content_sep=": ",

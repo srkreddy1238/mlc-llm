@@ -267,6 +267,6 @@ jobs:
            # Copy to common Linux CI
            foreach ($i in Get-ChildItem -Path ./dist/libs) {Copy-Item -Path .\dist\libs\$i -Destination $Env:CI_LLM_NIGHTLY_ARTIFACTS/dist/libs"}
            Copy-Item -Path .\build\mlc_llm-utils-win-x86.zip -Destination "$Env:CI_PACKAGE_REPO_NIGHTLY/"
-           foreach ($i in Get-ChildItem -Path ./nightly) {Copy-Item -Path .\nightly\$i -Destination "$Env:CI_PACKAGE_REPO_RELEASE/$Env:RELEASE_TAG"}
+           foreach ($i in Get-ChildItem -Path ./nightly) {Copy-Item -Path .\nightly\$i -Destination "$Env:CI_PACKAGE_REPO_NIGHTLY/"}
         env:
            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

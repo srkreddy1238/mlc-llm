@@ -36,37 +36,35 @@ function test-model {
     )
     # Arm64 Test
     $global:LASTEXITCODE = 0
-    run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-opencl-adreno-arm64.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-opencl-adreno-arm64.dll --device opencl --max-tokens 100 --context-window-size 1024 --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $global:LASTEXITCODE = 0
-    run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-clml-arm64.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    run_cmd ".\mlc_llm-utils-win-arm64-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-clml-arm64.dll --device opencl --max-tokens 100 --context-window-size 1024 --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 
     # x64 Test
     $global:LASTEXITCODE = 0
-    run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-opencl-adreno-x86.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-opencl-adreno-x86.dll --device opencl --max-tokens 100 --context-window-size 1024 --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $global:LASTEXITCODE = 0
-    run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-clml-x86.dll --device opencl --with-prompt `"What is the capital of India ?`""
+    run_cmd ".\mlc_llm-utils-win-x86-target\bin\mlc_cli_chat.exe --model C:\CI\LLM-Weights\$model-q4f16_0-MLC --model-lib .\libs\$model-q4f16_0-adreno-clml-x86.dll --device opencl --max-tokens 100 --context-window-size 1024 --with-prompt `"What is the capital of India ?`""
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # Remove weights as CI may get full soon
-    Remove-Item -Path "$MODEL_ARTIFACTS_PATH\dist\$model-q4f16_0-MLC" -Recurse -Force
+    # Remove-Item -Path "$MODEL_ARTIFACTS_PATH\dist\$model-q4f16_0-MLC" -Recurse -Force
 }
 
 # Build the models
 
-test-model Llama-2-7b-chat-hf
 test-model Meta-Llama-3-8B-Instruct
-test-model Qwen-7B-Chat
+test-model Llama-3.2-3B-Instruct
 test-model Mistral-7B-Instruct-v0.2
 test-model gemma-2b-it
 test-model phi-2
-test-model Phi-3-mini-4k-instruct
 test-model Phi-3.5-mini-instruct
 test-model llava-1.5-7b-hf
 test-model DeepSeek-R1-Distill-Qwen-1.5B
-test-model DeepSeek-R1-Distill-Llama-8B
+test-model Qwen2.5-1.5B-Instruct

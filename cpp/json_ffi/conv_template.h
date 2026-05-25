@@ -13,6 +13,7 @@
 
 #include "../serve/data.h"
 #include "../support/result.h"
+#include "../tokenizers/tokenizers.h"
 #include "openai_api_protocol.h"
 
 using namespace mlc::llm::serve;
@@ -147,6 +148,20 @@ struct Conversation {
 Result<std::vector<Data>> CreatePrompt(const Conversation& conv,
                                        const ChatCompletionRequest& request,
                                        const ModelConfig& config, DLDevice device);
+
+/*!
+ * \brief Truncate the prompt Data list so the total tokenized length does not exceed
+ *        max_prompt_length.  Only TextData segments are tokenized and trimmed; TokenData
+ *        and ImageData segments are kept as-is (their token counts are approximated).
+ *        Truncation removes tokens from the END of the last TextData segment first,
+ *        then works backwards through earlier segments.
+ * \param inputs             The prompt Data list produced by CreatePrompt.
+ * \param tokenizer          The model tokenizer used to count tokens.
+ * \param max_prompt_length  Maximum number of tokens allowed in the prompt.
+ * \return The (possibly truncated) Data list.
+ */
+Array<Data> TruncatePromptToTokenLimit(const Array<Data>& inputs, const Tokenizer& tokenizer,
+                                       int max_prompt_length);
 
 }  // namespace json_ffi
 }  // namespace llm

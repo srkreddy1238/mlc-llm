@@ -18,13 +18,16 @@ class ChatState {
   std::shared_ptr<JSONFFIEngineWrapper> __json_wrapper;
 
   ChatState(std::string model_path, std::string model_lib_path, std::string mode,
-            std::string device, int device_id = 0);
+            std::string device, int device_id = 0, int prefill_chunk_size = -1,
+            int context_window_size = -1);
 
   void slide_history();
   std::vector<Message> get_current_history_window();
-  int generate(const std::string& prompt, int max_tokens = -1);
+  void warmup(int max_prompt_length = -1);
+  int generate(const std::string& prompt, int max_tokens = -1, int max_prompt_length = -1);
   void reset();
-  int chat(std::string prompt = "", int max_tokens = -1, int repeat = 1);
+  int chat(std::string prompt = "", int max_tokens = -1, int repeat = 1,
+           int max_prompt_length = -1);
 };
 
 #endif

@@ -319,6 +319,13 @@ Result<ChatCompletionRequest> ChatCompletionRequest::FromJSON(const std::string&
     return TResult::Error(max_tokens_res.UnwrapErr());
   }
   request.max_tokens = max_tokens_res.Unwrap();
+  // max_prompt_length
+  Result<std::optional<int64_t>> max_prompt_length_res =
+      json::LookupOptionalWithResultReturn<int64_t>(json_obj, "max_prompt_length");
+  if (max_prompt_length_res.IsErr()) {
+    return TResult::Error(max_prompt_length_res.UnwrapErr());
+  }
+  request.max_prompt_length = max_prompt_length_res.Unwrap();
   // n
   Result<int64_t> n_res = json::LookupOrDefaultWithResultReturn<int64_t>(json_obj, "n", 1);
   if (n_res.IsErr()) {

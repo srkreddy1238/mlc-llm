@@ -24,10 +24,11 @@ void print_help_str() {
 }
 
 ChatState::ChatState(std::string model_path, std::string model_lib_path, std::string mode,
-                     std::string device, int device_id) {
+                     std::string device, int device_id, int prefill_chunk_size,
+                     int context_window_size) {
   history_window_begin = 0;
-  __json_wrapper =
-      std::make_shared<JSONFFIEngineWrapper>(model_path, model_lib_path, mode, device, device_id);
+  __json_wrapper = std::make_shared<JSONFFIEngineWrapper>(
+      model_path, model_lib_path, mode, device, device_id, prefill_chunk_size, context_window_size);
 }
 
 void ChatState::slide_history() {
@@ -39,7 +40,20 @@ std::vector<Message> ChatState::get_current_history_window() {
   return std::vector<Message>(history.begin() + history_window_begin, history.end());
 }
 
-int ChatState::generate(const std::string& prompt, int max_tokens) {
+void ChatState::warmup(int max_prompt_length) {
+  std::cerr << "[mlc_cli_chat] Running warm-up iteration..." << std::endl;
+  Message warm_msg;
+  warm_msg.content["role"] = "user";
+  warm_msg.content["content"] = "Hello";
+  std::vector<Message> warm_window = {warm_msg};
+  // Run a short generation silently (max_tokens=10, silent=true)
+  (*__json_wrapper)
+      .chat->completions.create(warm_window, /*max_tokens=*/10, max_prompt_length, /*silent=*/true);
+  reset();
+  std::cerr << "[mlc_cli_chat] Warm-up complete." << std::endl;
+}
+
+int ChatState::generate(const std::string& prompt, int max_tokens, int max_prompt_length) {
   // setting back the finish_reason_length
   bool finish_reason_length = false;
 
@@ -53,7 +67,8 @@ int ChatState::generate(const std::string& prompt, int max_tokens) {
 
   std::string output_text{""};
 
-  output_text = (*__json_wrapper).chat->completions.create(curr_window, max_tokens);
+  output_text =
+      (*__json_wrapper).chat->completions.create(curr_window, max_tokens, max_prompt_length);
 
   if (__json_wrapper->engine_state->finish_reason == "length") {
     finish_reason_length = true;
@@ -85,18 +100,20 @@ void ChatState::reset() {
   this->__json_wrapper->Reset();
 }
 
-int ChatState::chat(std::string prompt, int max_tokens, int repeat) {
+int ChatState::chat(std::string prompt, int max_tokens, int repeat, int max_prompt_length) {
   print_help_str();
+  // Run a silent warm-up iteration to prime the engine before real work.
+  warmup(max_prompt_length);
   // Get the prompt message
   if (!prompt.empty()) {
     int ret = 0;
     for (int i = 0; i < repeat; i++) {
-      ret = generate(prompt, max_tokens);
+      ret = generate(prompt, max_tokens, max_prompt_length);
       this->__json_wrapper->engine_state->getStats();
       reset();
     }
     __json_wrapper->background_loops->terminate();
-    return ret;
+    return 0;
   }
   std::string cin_prompt;
   while (true) {
@@ -112,7 +129,7 @@ int ChatState::chat(std::string prompt, int max_tokens, int repeat) {
     } else if (cin_prompt == "/stats") {
       this->__json_wrapper->engine_state->getStats();
     } else {
-      generate(cin_prompt, max_tokens);
+      generate(cin_prompt, max_tokens, max_prompt_length);
     }
   }
   return 0;

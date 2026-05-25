@@ -260,7 +260,7 @@ class EngineConfigNode : public Object {
    */
   float gpu_memory_utilization = 0.85;
   /*! \brief The number of consecutive tokens handled in each page in paged KV cache. */
-  int kv_cache_page_size = 16;
+  int kv_cache_page_size = 64;
   /*!
    * \brief The maximum number of sequences that are allowed to be
    * processed by the KV cache at any time.

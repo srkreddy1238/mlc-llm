@@ -92,6 +92,7 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake
            echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           echo set\(USE_CLML "${ADRENO_OPENCL}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake .. -G Ninja && cmake --build . --parallel $(nproc) && cd ..
       - name: Compile TVM
@@ -104,6 +105,7 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake;
            echo set\(USE_LLVM $LLVM_CONFIG\) >> config.cmake;
            echo set\(USE_CUDA ON\) >> config.cmake;
+           echo set\(USE_CLML "${ADRENO_OPENCL}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake .. -G Ninja && cmake --build . --parallel $(nproc); cd -
       - name: Check Build Status
@@ -148,6 +150,8 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake
            echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           echo set\(USE_CLML "${ADRENO_OPENCL}"\) >> config.cmake
+           echo set\(USE_CLML_GRAPH_EXECUTOR "${ADRENO_OPENCL}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL_GRAPH_EXECUTOR "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake -DANDROID_TOOLCHAIN_ROOT=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64 \
@@ -172,8 +176,7 @@ jobs:
            cp ${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so mlc_llm-utils-linux-arm64/lib/.
            cd ..
            sh ci/task/test_adreno_models.sh `cat /etc/mlc-device` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
-           # sh ci/task/test_adreno_models_v5.sh `cat /etc/mlc-device-v5` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
-           sh ci/task/test_adreno_models_v5-qcom.sh `cat /etc/tvm-ci-device-coop` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
+           sh ci/task/test_adreno_models_v5.sh `cat /etc/tvm-ci-device-coop` $CI_LLM_DEVICE_TEST_ARTIFACTS/$GITHUB_RUN_ID
 
   MLC-Build-Windows:
     # needs: [MLC-Build-Linux]
@@ -209,15 +212,12 @@ jobs:
            Add-Content config.cmake "set(USE_OPENCL ON)"
            Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
-           Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_X86)"
-           Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
            Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_X86)"
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_X86)"
            cmake .. -G "Visual Studio 17 2022" -A x64
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-x86-target" --config Release
            Copy-Item -Path ./lib/* -Destination "./mlc_llm-utils-win-x86-target/bin/"
-           Copy-Item -Path $Env:ADRENOACCL_SDK_X86\bin\* -Destination "./mlc_llm-utils-win-x86-target/bin/"
            Compress-Archive -Path mlc_llm-utils-win-x86-target/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-x86-target.zip -Force
            New-Item -ItemType Directory -Path "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID" -Force
            Copy-Item -Path mlc_llm-utils-win-x86-target.zip -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/"
@@ -232,8 +232,6 @@ jobs:
            Add-Content config.cmake "set(USE_VULKAN ON)"
            Add-Content config.cmake "set(USE_OPENCL $ENV:OPENCL_SDK_ADRENO_X86)"
            Add-Content config.cmake "set(USE_LLVM $ENV:LLVM_CONFIG)"
-           Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_X86)"
-           Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_X86)"
            Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_X86)"
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_X86)"
            cmake .. -G "Visual Studio 17 2022" -A x64
@@ -257,8 +255,6 @@ jobs:
            Add-Content config.cmake "set(USE_OPENCL ON)"
            Add-Content config.cmake "set(USE_OPENCL_ENABLE_HOST_PTR ON)"
            Add-Content config.cmake "set(USE_FLASHINFER OFF)"
-           Add-Content config.cmake "set(USE_ADRENO_ACCL $ENV:ADRENOACCL_SDK_ARM64)"
-           Add-Content config.cmake "set(USE_ADRENO_ACCL_GRAPH_EXECUTOR $ENV:ADRENOACCL_SDK_ARM64)"
            Add-Content config.cmake "set(USE_CLML $ENV:OPENCL_SDK_ADRENO_ARM64)"
            Add-Content config.cmake "set(USE_CLML_GRAPH_EXECUTOR $ENV:OPENCL_SDK_ADRENO_ARM64)"
            Add-Content config.cmake "set(CMAKE_SYSTEM_PROCESSOR ARM64)"
@@ -266,7 +262,6 @@ jobs:
            cmake --build . --config Release --parallel $env:NUMBER_OF_PROCESSORS
            cmake --install . --prefix ".\mlc_llm-utils-win-arm64-target" --config Release
            Copy-Item -Path ./lib/* -Destination "./mlc_llm-utils-win-arm64-target/bin/"
-           Copy-Item -Path $Env:ADRENOACCL_SDK_ARM64\bin\* -Destination "./mlc_llm-utils-win-arm64-target/bin/"
            Compress-Archive -Path mlc_llm-utils-win-arm64-target/* -CompressionLevel Optimal -DestinationPath mlc_llm-utils-win-arm64-target.zip -Force
            Copy-Item -Path mlc_llm-utils-win-arm64-target.zip -Destination "$Env:CI_LLM_DEVICE_TEST_ARTIFACTS/$Env:GITHUB_RUN_ID/"
            Pop-Location
@@ -284,7 +279,7 @@ jobs:
            python -m pip uninstall apache-tvm-ffi -y
            python3 -m pip install  -v --target=python ./3rdparty/tvm/3rdparty/tvm-ffi/
            python -c "import mlc_llm; print(mlc_llm.__path__)"
-           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY "ACCL" "CLML"
+           ci/task/build_adreno_models_win.ps1 $Env:CI_LLM_INVENTORY "CLML"
       - name: Build Package and Upload for Device Tests
         shell: powershell
         run: |
@@ -314,7 +309,7 @@ jobs:
         run: |
           Get-ChildItem Env:
           git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
+          # git -c protocol.version=2 submodule update --init --force --depth=0 --recursive
       - name: Install MLC & TVM
         shell: powershell
         run: |

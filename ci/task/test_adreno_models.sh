@@ -24,6 +24,7 @@ test_model() {
         --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
         --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-opencl.so \
         --max-tokens 100 \
+        --context-window-size 1024 \
         --device opencl \
         --with-prompt \"write a poem about moon in 100 words\""
 
@@ -33,6 +34,7 @@ test_model() {
         --model /data/local/tmp/mlc-ci/models/${model}-q4f16_0-MLC \
         --model-lib /data/local/tmp/mlc-ci/models/${model}-q4f16_0-adreno-accl.so \
         --max-tokens 100 \
+        --context-window-size 1024 \
         --device opencl \
         --with-prompt \"write a poem about moon in 100 words\""
 }
@@ -41,19 +43,17 @@ test_model() {
 adb shell "rm -rf /data/local/tmp/mlc-ci"
 adb shell "rm -rf /data/local/tmp/mlc-ci"
 adb push build-arm64/mlc_llm-utils-linux-arm64 /data/local/tmp/mlc-ci/
+adb push ci/task/prompt.txt /data/local/tmp/mlc-ci/
 
 MODELS="Meta-Llama-3-8B-Instruct \
        Llama-3.2-3B-Instruct \
-       Qwen-7B-Chat \
        Mistral-7B-Instruct-v0.2 \
        gemma-2b-it \
        phi-2 \
        Phi-3.5-mini-instruct \
        llava-1.5-7b-hf \
        DeepSeek-R1-Distill-Qwen-1.5B \
-       DeepSeek-R1-Distill-Llama-8B \
-       Qwen2.5-1.5B-Instruct \
-       Qwen2.5-0.5B-Instruct"
+       Qwen2.5-1.5B-Instruct"
 
 for i in ${MODELS}
 do

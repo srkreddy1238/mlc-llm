@@ -40,7 +40,8 @@ class EngineStateCli {
   EngineStateCli();
   std::function<void(const std::string&)> get_request_stream_callback();
   std::string handle_chat_completion(ffi::Module mod, const std::string& request_json,
-                                     bool include_usage, const std::string& request_id);
+                                     bool include_usage, const std::string& request_id,
+                                     bool silent = false);
   void getStats();
 };
 
@@ -53,7 +54,8 @@ class Completions {
 
   inline std::string GenerateUUID(size_t length);
 
-  std::string create(std::vector<Message>& messages, int max_tokens = -1);
+  std::string create(std::vector<Message>& messages, int max_tokens = -1,
+                     int max_prompt_length = -1, bool silent = false);
 };
 
 class Chat {
@@ -88,7 +90,8 @@ class JSONFFIEngineWrapper {
   std::shared_ptr<BackgroundLoops> background_loops;
 
   explicit JSONFFIEngineWrapper(std::string model_path, std::string model_lib_path,
-                                std::string mode, std::string device, int device_id);
+                                std::string mode, std::string device, int device_id,
+                                int prefill_chunk_size, int context_window_size);
   void Reset();
 };
 
