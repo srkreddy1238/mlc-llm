@@ -98,17 +98,19 @@ class Qwen2MoeSparseMoeBlock(nn.Module):  # pylint: disable=too-many-instance-at
         num_experts = self.num_experts
         batch_size, seq_len, hidden_size = x.shape
         num_tokens = batch_size * seq_len
-        x = x.reshape(num_tokens, hidden_size)
         gate = self.gate(x)
+        gate = gate.reshape(num_tokens, -1)
         # expert_weights: [num_tokens, experts_per_tok]
         # expert_indices: [num_tokens, experts_per_tok]
         expert_weights, expert_indices = op_ext.moe_misc.gating_softmax_topk(
             gate, experts_per_tok, norm_topk_prob=self.norm_topk_prob
         )
-        if num_tokens == 1:
+        if seq_len == 1:
             # x: [num_tokens * experts_per_tok, hidden_size]
             moe_hidden_states = _expert_forward(x, expert_indices)
+            moe_hidden_states = moe_hidden_states.reshape(-1, hidden_size)
         else:
+            x = x.reshape(num_tokens, hidden_size)
             # cumsum: [num_tokens * local_experts]
             cumsum = op_ext.moe_misc.moe_cumsum(expert_indices, num_experts)
             # indices: [num_tokens * experts_per_tok]

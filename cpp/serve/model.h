@@ -240,7 +240,8 @@ class ModelObj : public Object {
    * The KV cache does not need this.
    */
   virtual void CreateKVCache(int page_size, int max_num_sequence, int64_t max_total_sequence_length,
-                             int64_t prefill_chunk_size, int max_history_size) = 0;
+                             int64_t prefill_chunk_size, int max_history_size,
+                             int prefix_cache_max_num_recycling_seqs = 0) = 0;
 
   /*! \brief Add a new sequence with the given sequence id to the KV cache. */
   virtual void AddNewSequence(int64_t seq_id) = 0;

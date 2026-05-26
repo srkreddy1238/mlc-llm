@@ -58,3 +58,9 @@ build_model DeepSeek-R1-Distill-Qwen-1.5B q4f16_0 deepseek_r1_qwen "--prefill-ch
 
 # Qwen2.5-1.5B-Instruct
 build_model Qwen2.5-1.5B-Instruct q4f16_0 qwen2 "--model-type qwen2 --prefill-chunk-size 256 --context-window-size 4096"
+
+# Qwen3.5-0.8B
+build_model Qwen3.5-0.8B q4f16_0 qwen3_5 "--model-type qwen3_5 --prefill-chunk-size 256 --context-window-size 4096"
+
+# Qwen1.5-MoE-A2.7B
+build_model Qwen1.5-MoE-A2.7B q4f16_0 qwen2 "--model-type qwen2_moe --prefill-chunk-size 256 --context-window-size 4096"

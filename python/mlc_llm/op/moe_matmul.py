@@ -4,10 +4,9 @@ from typing import Literal, Optional, Tuple
 
 from tvm import DataType, DataTypeCode, s_tir, tir
 from tvm.relax.frontend.nn import Tensor, op
+from tvm.s_tir.tensor_intrin.adreno import get_adreno_wmma_intrin_group
 from tvm.script import tir as T
-
-# mypy: disable-error-code="attr-defined,valid-type,name-defined"
-# pylint: disable=too-many-locals,invalid-name,too-many-arguments,too-many-statements
+from tvm.target import Target
 
 
 def gemv(x: Tensor, w: Tensor, indptr: Tensor) -> Tensor:
@@ -36,42 +35,46 @@ def gemv(x: Tensor, w: Tensor, indptr: Tensor) -> Tensor:
     """
     (local_experts, out_features, in_features), dtype = w.shape, w.dtype
     _, experts_per_tok = indptr.shape
-    x_leading_dim, _ = x.shape
+    bs, x_leading_dim, _ = x.shape
 
-    def access_x(x, e, j):
-        return x[0, j] if x_leading_dim == 1 else x[e, j]
+    def access_x(x, b, e, j):
+        return x[b, 0, j] if x_leading_dim == 1 else x[b, e, j]
 
     # NOTE: Currently it assumes x.dtype == w.dtype, but the constraint can be relaxed easily.
     assert w.shape == [local_experts, out_features, in_features] and w.dtype == dtype
-    assert x.shape == [x_leading_dim, in_features] and x.dtype == dtype
-    assert indptr.shape == [1, experts_per_tok] and indptr.dtype == "int32"
+    assert x.shape == [bs, x_leading_dim, in_features] and x.dtype == dtype
+    assert indptr.shape == [bs, experts_per_tok] and indptr.dtype == "int32"
     assert x_leading_dim in [1, experts_per_tok]
 
     @T.prim_func(private=True)
     def _func(
-        x: T.Buffer((x_leading_dim, in_features), dtype),
+        var_x: T.handle,
         w: T.Buffer((local_experts, out_features, in_features), dtype),
-        indptr: T.Buffer((1, experts_per_tok), "int32"),
-        o: T.Buffer((experts_per_tok, out_features), dtype),
+        var_indptr: T.handle,
+        var_o: T.handle,
     ):
         T.func_attr({"op_pattern": 4, "tir.noalias": True})  # kOutEWiseFusable
+        batch_size = T.int32(is_size_var=True)
+        x = T.match_buffer(var_x, (batch_size, x_leading_dim, in_features), dtype)
+        indptr = T.match_buffer(var_indptr, (batch_size, experts_per_tok), "int32")
+        o = T.match_buffer(var_o, (batch_size, experts_per_tok, out_features), dtype)
         for e in T.thread_binding(experts_per_tok, thread="blockIdx.y"):
             with T.sblock("gemv_o"):
                 e = T.axis.spatial(experts_per_tok, e)
-                T.reads(x[:, :], w[indptr[0, e], :, :], indptr[0, e])
-                T.writes(o[e, :])
-                for i1, i2 in T.grid(out_features, in_features):
+                T.reads(x[:, :, :], w[:, :, :], indptr[:, e])
+                T.writes(o[:, e, :])
+                for i0, i1, i2 in T.grid(batch_size, out_features, in_features):
                     with T.sblock("gemv"):
-                        i, j = T.axis.remap("SR", [i1, i2])
+                        b, i, j = T.axis.remap("SSR", [i0, i1, i2])
                         with T.init():
-                            o[e, i] = T.cast(T.float16(0), dtype)
-                        o[e, i] += access_x(x, e, j) * w[indptr[0, e], i, j]
+                            o[b, e, i] = T.cast(T.float16(0), dtype)
+                        o[b, e, i] += access_x(x, b, e, j) * w[indptr[b, e], i, j]
 
     return op.tensor_ir_op(
         _func,
         "moe_gemv",
         args=[x, w, indptr],
-        out=Tensor.placeholder([experts_per_tok, out_features], dtype),
+        out=Tensor.placeholder([x.shape[0], experts_per_tok, out_features], dtype),
     )
 
 
@@ -121,7 +124,7 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
         number of activated experts per token.
     """
 
-    (x_leading_dim, in_features), model_dtype = x.shape, x.dtype
+    (bs, x_leading_dim, in_features), model_dtype = x.shape, x.dtype
     local_experts = w.shape[0]
     out_features = w.shape[2] if weight_layout == "KN" else w.shape[1]
     storage_dtype = w.dtype
@@ -144,10 +147,10 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
         w = tir.bitwise_and(tir.shift_right(w, shift), tir_bin_mask).astype(model_dtype)
         return (w - tir_max_int) * s
 
-    def access_x(x, e, j):
-        return x[0, j] if x_leading_dim == 1 else x[e, j]
+    def access_x(x, b, e, j):
+        return x[b, 0, j] if x_leading_dim == 1 else x[b, e, j]
 
-    assert x.shape == [x_leading_dim, in_features] and x.dtype == model_dtype
+    assert x.shape == [bs, x_leading_dim, in_features] and x.dtype == model_dtype
     assert w.dtype == storage_dtype
     if weight_layout == "KN":
         assert w.shape == [local_experts, num_storage, out_features]
@@ -155,63 +158,75 @@ def dequantize_gemv(  # pylint: disable=too-many-arguments
     else:
         assert w.shape == [local_experts, out_features, num_storage]
         assert scale.shape == [local_experts, out_features, num_group]
-    assert indptr.shape == [1, experts_per_tok] and indptr.dtype == "int32"
+    assert indptr.shape == [bs, experts_per_tok] and indptr.dtype == "int32"
     assert x_leading_dim in [1, experts_per_tok]
 
     @T.prim_func(private=True)
     def _func_kn(
-        x: T.Buffer((x_leading_dim, in_features), model_dtype),
+        var_x: T.handle,
         w: T.Buffer((local_experts, num_storage, out_features), storage_dtype),
         scale: T.Buffer((local_experts, num_group, out_features), model_dtype),
-        indptr: T.Buffer((1, experts_per_tok), "int32"),
-        o: T.Buffer((experts_per_tok, out_features), model_dtype),
+        var_indptr: T.handle,
+        var_o: T.handle,
     ):
         T.func_attr({"op_pattern": 4, "tir.noalias": True})  # kOutEWiseFusable
+        batch_size = T.int32(is_size_var=True)
+        x = T.match_buffer(var_x, (batch_size, x_leading_dim, in_features), model_dtype)
+        indptr = T.match_buffer(var_indptr, (batch_size, experts_per_tok), "int32")
+        o = T.match_buffer(var_o, (batch_size, experts_per_tok, out_features), model_dtype)
         for expert_id in T.thread_binding(experts_per_tok, thread="blockIdx.y"):
-            with T.sblock("gemv_o"):
-                e = T.axis.spatial(experts_per_tok, expert_id)
-                y = T.alloc_buffer((out_features, in_features), model_dtype)
-                for i1, i2 in T.grid(out_features, in_features):
-                    with T.sblock("dequantize"):
-                        i, j = T.axis.remap("SS", [i1, i2])
-                        y[i, j] = _dequantize(w, scale, indptr[0, e], i, j)
-                for i1, i2 in T.grid(out_features, in_features):
-                    with T.sblock("gemv"):
-                        i, j = T.axis.remap("SR", [i1, i2])
-                        with T.init():
-                            o[e, i] = T.cast(T.float16(0), model_dtype)
-                        o[e, i] += access_x(x, e, j) * y[i, j]
+            for _bs in range(batch_size):
+                with T.sblock("gemv_o"):
+                    e = T.axis.spatial(experts_per_tok, expert_id)
+                    b = T.axis.spatial(batch_size, _bs)
+                    y = T.alloc_buffer((out_features, in_features), model_dtype)
+                    for i1, i2 in T.grid(out_features, in_features):
+                        with T.sblock("dequantize"):
+                            i, j = T.axis.remap("SS", [i1, i2])
+                            y[i, j] = _dequantize(w, scale, indptr[b, e], i, j)
+                    for i1, i2 in T.grid(out_features, in_features):
+                        with T.sblock("gemv"):
+                            i, j = T.axis.remap("SR", [i1, i2])
+                            with T.init():
+                                o[b, e, i] = T.cast(T.float16(0), model_dtype)
+                            o[b, e, i] += access_x(x, b, e, j) * y[i, j]
 
     @T.prim_func(private=True)
     def _func_nk(
-        x: T.Buffer((x_leading_dim, in_features), model_dtype),
+        var_x: T.handle,
         w: T.Buffer((local_experts, out_features, num_storage), storage_dtype),
         scale: T.Buffer((local_experts, out_features, num_group), model_dtype),
-        indptr: T.Buffer((1, experts_per_tok), "int32"),
-        o: T.Buffer((experts_per_tok, out_features), model_dtype),
+        var_indptr: T.handle,
+        var_o: T.handle,
     ):
         T.func_attr({"op_pattern": 4, "tir.noalias": True})  # kOutEWiseFusable
+        batch_size = T.int32(is_size_var=True)
+        x = T.match_buffer(var_x, (batch_size, x_leading_dim, in_features), model_dtype)
+        indptr = T.match_buffer(var_indptr, (batch_size, experts_per_tok), "int32")
+        o = T.match_buffer(var_o, (batch_size, experts_per_tok, out_features), model_dtype)
         for expert_id in T.thread_binding(experts_per_tok, thread="blockIdx.y"):
-            with T.sblock("gemv_o"):
-                e = T.axis.spatial(experts_per_tok, expert_id)
-                y = T.alloc_buffer((out_features, in_features), model_dtype)
-                for i1, i2 in T.grid(out_features, in_features):
-                    with T.sblock("dequantize"):
-                        i, j = T.axis.remap("SS", [i1, i2])
-                        y[i, j] = _dequantize(w, scale, indptr[0, e], i, j)
-                for i1, i2 in T.grid(out_features, in_features):
-                    with T.sblock("gemv"):
-                        i, j = T.axis.remap("SR", [i1, i2])
-                        with T.init():
-                            o[e, i] = T.cast(T.float16(0), model_dtype)
-                        o[e, i] += access_x(x, e, j) * y[i, j]
+            for _bs in range(batch_size):
+                with T.sblock("gemv_o"):
+                    e = T.axis.spatial(experts_per_tok, expert_id)
+                    b = T.axis.spatial(batch_size, _bs)
+                    y = T.alloc_buffer((out_features, in_features), model_dtype)
+                    for i1, i2 in T.grid(out_features, in_features):
+                        with T.sblock("dequantize"):
+                            i, j = T.axis.remap("SS", [i1, i2])
+                            y[i, j] = _dequantize(w, scale, indptr[b, e], i, j)
+                    for i1, i2 in T.grid(out_features, in_features):
+                        with T.sblock("gemv"):
+                            i, j = T.axis.remap("SR", [i1, i2])
+                            with T.init():
+                                o[b, e, i] = T.cast(T.float16(0), model_dtype)
+                            o[b, e, i] += access_x(x, b, e, j) * y[i, j]
 
     _func = _func_kn if weight_layout == "KN" else _func_nk
     return op.tensor_ir_op(
         _func,
         "moe_dequantize_gemv",
         args=[x, w, scale, indptr],
-        out=Tensor.placeholder([experts_per_tok, out_features], model_dtype),
+        out=Tensor.placeholder([x.shape[0], experts_per_tok, out_features], model_dtype),
     )
 
 
@@ -599,6 +614,7 @@ def dequantize_group_gemm(
     indptr_dtype: str,
     group_size: int,
     weight_layout: Literal["NK", "KN"] = "NK",
+    target: Optional[Target] = None,
 ):
     """Group GEMM in MoE models but the weight is quantized.
 
@@ -627,6 +643,11 @@ def dequantize_group_gemm(
 
     indptr_dtype : str
         The dtype of the index pointer tensor, which can be int32 or int64.
+
+    target : Optional[Target]
+        The compilation target (e.g. CUDA, Metal, Vulkan). When provided, target-specific
+        kernel tuning parameters can be selected. Falls back to ``Target.current()`` if
+        ``None`` is passed.
 
     Returns
     -------
@@ -662,12 +683,27 @@ def dequantize_group_gemm(
         return (w - tir_max_int) * s
 
     Ne, N, K = num_local_experts, out_features, in_features
-    BLK_M, BLK_N, BLK_K = 8, 256, 32
-    TX, TY, CTA_COUNT = 8, 32, 1024
-    VEC_X, VEC_W, VEC_O, VEC_DOT = 4, 1, 8, 1
+    if (
+        (
+            target is not None
+            and target.kind.name == "vulkan"
+            and target.attrs.get("supports_khr_cooperative_matrix", False)
+            and target.attrs.get("supports_qcom_cooperative_matrix_conversion", False)
+        )
+        and weight_layout == "KN"
+        and (("android" in str(target.host)) or ("adreno" in str(target.attrs)))
+    ):
+        BLK_M, BLK_N, BLK_K = 64, 256, 32
+        TX, TY, CTA_COUNT = 64, 4, 256
+        VEC_X, VEC_W, VEC_O, VEC_DOT = 1, 1, 4, 1
+        assert BLK_K % 16 == 0
+    else:
+        BLK_M, BLK_N, BLK_K = 8, 256, 32
+        TX, TY, CTA_COUNT = 8, 32, 1024
+        VEC_X, VEC_W, VEC_O, VEC_DOT = 4, 1, 4, 1
+        assert BLK_K % 8 == 0
     UNROLL = 64
     STORAGE_ALIGN = False
-    assert BLK_K % 8 == 0
     tiles_per_row = (N + BLK_N - 1) // BLK_N
     zero = tir.const(0, model_dtype)
     if indptr_dtype == "int64":
@@ -731,7 +767,7 @@ def dequantize_group_gemm(
                             T.writes(O[m_offset : m_offset + BLK_M, n_offset : n_offset + BLK_N])
                             X_tile = T.alloc_buffer((BLK_M, K), model_dtype, scope="shared")
                             W_tile = T.alloc_buffer((BLK_N, K), model_dtype, scope="shared")
-                            O_tile = T.alloc_buffer((BLK_M, BLK_N), "float32", scope="local")
+                            O_tile = T.alloc_buffer((BLK_M, BLK_N), "float16", scope="local")
                             for a0, a1 in T.grid(BLK_M, K):
                                 with T.sblock("X_shared"):
                                     i, j = T.axis.remap("SS", [a0, a1])
@@ -904,6 +940,110 @@ def dequantize_group_gemm(
 
         sch.decompose_reduction(main_block, k0)
         return sch.mod["main"]
+
+    def _schedule_adreno_vulkan():
+        sch = s_tir.Schedule(_func_kn)
+
+        TILE_M = 64
+        TILE_N = 64
+        TILE_K = 16
+
+        main_block = sch.get_sblock("compute")
+        m, n, k = sch.get_loops(main_block)
+        xi, vx, tile_m = sch.split(m, [None, 1, TILE_M])
+        yi, ty, tile_n = sch.split(n, [None, TY, TILE_N])
+        ko, ks, kq, tile_k = sch.split(k, (None, 2, 1, TILE_K))
+        sch.reorder(xi, yi, vx, ty, ko, ks, kq, tile_m, tile_n, tile_k)
+
+        # Bindings
+        sch.bind(ty, "threadIdx.y")
+
+        inp_blk = sch.get_sblock("X_shared")
+        sch.compute_at(inp_blk, kq)
+        sch.set_scope(inp_blk, 0, "local")
+        x, ky = sch.get_loops(inp_blk)[-2:]
+        xi, tx = sch.split(x, [None, TX])
+        sch.bind(tx, "threadIdx.x")
+
+        A_wmma = sch.cache_write(inp_blk, 0, "local")
+        sch.set_scope(A_wmma, 0, "wmma.matrix_a")
+        yy, ky = sch.get_loops(A_wmma)[-2:]
+        _, txx = sch.split(yy, [None, TX])
+        sch.bind(txx, "threadIdx.x")
+
+        dequant_block = sch.get_sblock("W_shared")
+        sch.compute_at(dequant_block, kq)
+        sch.set_scope(dequant_block, 0, "local")
+        yy, ky = sch.get_loops(dequant_block)[-2:]
+        _, tyy, txx = sch.split(yy, [None, TY, TX])
+        sch.bind(tyy, "threadIdx.y")
+        sch.bind(txx, "threadIdx.x")
+
+        B_wmma = sch.cache_write(dequant_block, 0, "local")
+        sch.set_scope(B_wmma, 0, "wmma.matrix_b")
+        yy, ky = sch.get_loops(B_wmma)[-2:]
+        _, tyy, txx = sch.split(yy, [None, TY, TX])
+        sch.bind(tyy, "threadIdx.y")
+        sch.bind(txx, "threadIdx.x")
+
+        C_init = sch.decompose_reduction(main_block, ko)
+        sch.set_scope(C_init, 0, "wmma.accumulator")
+
+        l2g = sch.get_sblock("store")
+
+        C_store = sch.reindex(l2g, ("read", 1))
+        sch.set_scope(C_store, 0, "local")
+        x, y = sch.get_loops(C_store)
+        yi, ty, tile_ny = sch.split(y, [None, TY, TILE_N])
+        tx, xi = sch.split(x, [TX, None])
+        sch.reorder(ty, tx, yi, xi, tile_ny)
+        sch.bind(ty, "threadIdx.y")
+        sch.bind(tx, "threadIdx.x")
+
+        l2g = sch.get_sblock("store")
+        x, y = sch.get_loops(l2g)
+        yi, ty, tile_ny = sch.split(y, [None, TY, TILE_N])
+        tx, xi = sch.split(x, [TX, None])
+        sch.reorder(ty, tx, yi, xi, tile_ny)
+        sch.bind(ty, "threadIdx.y")
+        sch.bind(tx, "threadIdx.x")
+        sch.unroll(tile_ny)
+
+        INTRIN = get_adreno_wmma_intrin_group(
+            TILE_M,
+            TILE_N,
+            TILE_K,
+            ("local", "local"),
+            "local",
+            False,
+            True,
+            "float16",
+            "float16",
+        )
+        sch.tensorize(sch.get_loops(C_init)[-2], INTRIN["init"])
+        sch.tensorize(sch.get_loops(A_wmma)[-1], INTRIN["load_a"])
+        sch.tensorize(sch.get_loops(B_wmma)[-1], INTRIN["load_b"])
+        sch.tensorize(sch.get_loops(main_block)[-3], INTRIN["compute"])
+        sch.tensorize(sch.get_loops(C_store)[-1], INTRIN["store"])
+
+        return sch.mod["main"]
+
+    if (
+        (
+            target is not None
+            and target.kind.name == "vulkan"
+            and target.attrs.get("supports_khr_cooperative_matrix", False)
+            and target.attrs.get("supports_qcom_cooperative_matrix_conversion", False)
+        )
+        and weight_layout == "KN"
+        and (("android" in str(target.host)) or ("adreno" in str(target.attrs)))
+    ):
+        return op.tensor_ir_op(
+            _schedule_adreno_vulkan(),
+            "dequantize_group_gemm",
+            args=[x, w, scale, indptr],
+            out=Tensor.placeholder([x.shape[0], out_features], model_dtype),
+        )
 
     return op.tensor_ir_op(
         _schedule(),

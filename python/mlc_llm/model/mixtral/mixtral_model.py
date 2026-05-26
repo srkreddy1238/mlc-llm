@@ -75,19 +75,21 @@ class MixtralMoE(nn.Module):
         local_experts = self.num_local_experts  # total number of experts
         batch_size, seq_len, hidden_size = x.shape
         num_tokens = batch_size * seq_len
-        x = x.reshape(num_tokens, hidden_size)
         # gate: [num_tokens, local_experts]
         gate: Tensor = self.gate(x)
+        gate = gate.reshape(num_tokens, -1)
         # expert_weights: [num_tokens, experts_per_tok]
         # expert_indices: [num_tokens, experts_per_tok]
         expert_weights, expert_indices = op_ext.moe_misc.gating_softmax_topk(gate, experts_per_tok)
         use_ft = (
             op_ext.get_store().cutlass_group_gemm or op_ext.get_store().faster_transformer
         ) and self.dtype == "float16"
-        if num_tokens == 1:
-            # x: [num_tokens * experts_per_tok, hidden_size]
+        if seq_len == 1:
+            # x: [batch_size, seq_len * experts_per_tok, hidden_size]
             x = _expert_forward(x, expert_indices)
+            x = x.reshape(-1, hidden_size)
         else:
+            x = x.reshape(num_tokens, hidden_size)
             # cumsum: [num_tokens * local_experts]
             cumsum = op_ext.moe_misc.moe_cumsum(expert_indices, local_experts)
             # indices: [num_tokens * experts_per_tok]

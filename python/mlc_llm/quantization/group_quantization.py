@@ -7,6 +7,7 @@ from typing import Any, List, Literal, Optional, Tuple, Union
 from tvm import DataType, DataTypeCode, IRModule, relax, te, tir, topi
 from tvm.relax.frontend import nn
 from tvm.runtime import Tensor
+from tvm.target import Target
 
 from mlc_llm.loader import QuantizeMapping
 from mlc_llm.nn import MixtralExperts
@@ -142,7 +143,9 @@ class GroupQuantize:  # pylint: disable=too-many-instance-attributes
                         self.config.quantize_weight,
                         output_transpose=self.config.linear_weight_layout == "KN",
                     )
-                    return GroupQuantizeMixtralExperts.from_mixtral_experts(node, self.config)
+                    return GroupQuantizeMixtralExperts.from_mixtral_experts(
+                        node, self.config, target=Target.current(allow_none=True)
+                    )
                 return self.visit(name, node)
 
         model.to(dtype=self.model_dtype)
@@ -586,12 +589,18 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
     """An MixtralExperts module with group quantization"""
 
     def __init__(
-        self, num_local_experts, in_features, out_features, config: GroupQuantize
+        self,
+        num_local_experts,
+        in_features,
+        out_features,
+        config: GroupQuantize,
+        target: Optional[Target] = None,
     ):  # pylint: disable=too-many-arguments
         self.num_local_experts = num_local_experts
         self.in_features = in_features
         self.out_features = out_features
         self.config = config
+        self.target = target
         self.weight_layout = config.linear_weight_layout
         num_group = tir.ceildiv(in_features, config.group_size)
         if config.linear_weight_layout == "KN":
@@ -616,7 +625,9 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
 
     @staticmethod
     def from_mixtral_experts(
-        src: "MixtralExperts", config: GroupQuantize
+        src: "MixtralExperts",
+        config: GroupQuantize,
+        target: Optional[Target] = None,
     ) -> "GroupQuantizeMixtralExperts":
         """
         Converts a non-quantized MixtralExperts to a group quantized GroupQuantizeMixtralExperts
@@ -629,6 +640,10 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
         config : GroupQuantize
             The group quantization config.
 
+        target : Optional[Target]
+            The compilation target to forward to the quantized kernel. Falls back to
+            ``Target.current()`` inside the kernel if ``None``.
+
         Returns
         -------
         ret : GroupQuantizeMixtralExperts
@@ -639,6 +654,7 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
             in_features=src.in_features,
             out_features=src.out_features,
             config=config,
+            target=target,
         )
         if "shard_strategy" in src.weight.attrs:
             shard = src.weight.attrs["shard_strategy"]
@@ -667,9 +683,7 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
         """
         from mlc_llm.op import moe_matmul  # pylint: disable=import-outside-toplevel
 
-        assert x.ndim == 2
-        if indptr.ndim == 2:  # single-batch
-            assert indptr.shape[0] == 1
+        if x.ndim == 3 and indptr.ndim == 2:
             return moe_matmul.dequantize_gemv(
                 x,
                 self.q_weight,
@@ -679,6 +693,7 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
                 group_size=self.group_size,
                 weight_layout=self.weight_layout,
             )
+
         assert indptr.ndim == 1
         return moe_matmul.dequantize_group_gemm(
             x,
@@ -689,4 +704,5 @@ class GroupQuantizeMixtralExperts(nn.Module):  # pylint: disable=too-many-instan
             indptr_dtype=indptr.dtype,
             group_size=self.group_size,
             weight_layout=self.weight_layout,
+            target=self.target,
         )

@@ -304,6 +304,7 @@ CONV_TEMPLATES = {
     "chatml",
     "chatml_nosystem",
     "qwen2",
+    "qwen3_5",
     "open_hermes_mistral",
     "neural_hermes_mistral",
     "llama_default",

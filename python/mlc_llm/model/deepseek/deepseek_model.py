@@ -204,16 +204,18 @@ class DeepseekMoE(nn.Module):  # pylint: disable=too-many-instance-attributes
         num_experts = self.num_local_experts
         b, s, h = x.shape
         num_tokens = b * s
-        x = op.reshape(x, (num_tokens, h))
         gate = self.gate(x)  # (b * s, num_routed_experts)
+        gate = gate.reshape(num_tokens, -1)
         expert_weights, expert_indices = op_ext.moe_misc.gating_softmax_topk(
             gate, experts_per_tok, norm_topk_prob=self.norm_topk_prob
         )
 
-        if num_tokens == 1:
-            # x: [num_tokens * experts_per_tok, hidden_size]
+        if s == 1:
+            # x: [batch_size, s * experts_per_tok, hidden_size]
             moe_hidden_states = _expert_forward(x, expert_indices)
+            moe_hidden_states = moe_hidden_states.reshape(-1, h)
         else:
+            x = op.reshape(x, (num_tokens, h))
             # cumsum: [num_tokens * local_experts]
             cumsum = op_ext.moe_misc.moe_cumsum(expert_indices, num_experts)
             # indices: [num_tokens * experts_per_tok]

@@ -101,6 +101,8 @@ def _infer_kv_state_kind(model_type) -> str:
         return "rnn_state"
     if "medusa" in model_type:
         return "none"
+    if "qwen3_5" in model_type or "qwen3_5_moe" in model_type:
+        return "hybrid"
     return "kv_cache"
 
 

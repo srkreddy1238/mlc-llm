@@ -18,10 +18,9 @@ class MixtralExperts(nn.Module):
         self.tensor_parallel_shards = tensor_parallel_shards
 
     def forward(self, x: Tensor, indptr: Tensor):  # pylint: disable=invalid-name,missing-docstring
-        assert x.ndim == 2
-        if indptr.ndim == 2:
-            assert indptr.shape[0] == 1
+        if x.ndim == 3 and indptr.ndim == 2:
             return moe_matmul.gemv(x, self.weight, indptr)
+
         assert indptr.ndim == 1
         if extern.get_store().cutlass_group_gemm and self.dtype in [
             "float16",

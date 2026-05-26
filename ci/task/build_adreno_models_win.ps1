@@ -230,9 +230,11 @@ $modelConfigs = @(
     @{ model = "gemma-2b-it";                    quantization = "q4f16_0"; template = "gemma_instruction"; addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "phi-2";                          quantization = "q4f16_0"; template = "phi-2";             addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "Phi-3.5-mini-instruct";          quantization = "q4f16_0"; template = "phi-3";             addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
-    @{ model = "llava-1.5-7b-hf";               quantization = "q4f16_0"; template = "llava";             addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
-    @{ model = "DeepSeek-R1-Distill-Qwen-1.5B"; quantization = "q4f16_0"; template = "deepseek_r1_qwen"; addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
+    @{ model = "llava-1.5-7b-hf";                quantization = "q4f16_0"; template = "llava";             addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
+    @{ model = "DeepSeek-R1-Distill-Qwen-1.5B";  quantization = "q4f16_0"; template = "deepseek_r1_qwen"; addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "Qwen2.5-1.5B-Instruct";         quantization = "q4f16_0"; template = "qwen2";             addl_args = "--model-type qwen2 --prefill-chunk-size 256 --context-window-size 4096" }
+    @{ model = "Qwen3.5-0.8B";                   quantization = "q4f16_0"; template = "qwen3_5";             addl_args = "--model-type qwen3_5 --prefill-chunk-size 256 --context-window-size 4096" }
+    @{ model = "Qwen1.5-MoE-A2.7B-Chat";         quantization = "q4f16_0"; template = "qwen2";             addl_args = "--model-type qwen2_moe --prefill-chunk-size 256 --context-window-size 4096" }
 )
 
 # Stops all running jobs, kills their python child processes, and cleans up.
