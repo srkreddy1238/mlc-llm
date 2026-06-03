@@ -166,8 +166,8 @@ class MockEchoEngineImpl : public Engine {
     inferrable_config.max_num_sequence = 32;
     inferrable_config.max_total_sequence_length = 32 * 4096;
     inferrable_config.max_single_sequence_length = 4096;
-    inferrable_config.prefill_chunk_size = 1024;
-    inferrable_config.max_history_size = 1024;
+    inferrable_config.prefill_chunk_size = 2048;
+    inferrable_config.max_history_size = 2048;
     tvm::ffi::String err;
     auto config_json = tvm::ffi::json::Parse(engine_config_json_str, &err);
     if (!err.empty()) {

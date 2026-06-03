@@ -7,6 +7,8 @@
 #include <tvm/ffi/function.h>
 #include <tvm/runtime/device_api.h>
 
+#include <cstdlib>
+#include <iomanip>
 #include <limits>
 #include <random>
 
@@ -25,6 +27,24 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 }
 
 uint64_t TotalDetectGlobalMemory(DLDevice device) {
+  // Allow overriding the detected GPU memory size via environment variable.
+  // Usage: set MLC_GPU_MEMORY_OVERRIDE_BYTES=<bytes>
+  // Example for 33 GB: MLC_GPU_MEMORY_OVERRIDE_BYTES=35433480192
+  const char* override_env = std::getenv("MLC_GPU_MEMORY_OVERRIDE_BYTES");
+  if (override_env != nullptr) {
+    try {
+      int64_t override_bytes = std::stoll(override_env);
+      if (override_bytes > 0) {
+        LOG(INFO) << "GPU memory size overridden by MLC_GPU_MEMORY_OVERRIDE_BYTES: "
+                  << override_bytes << " bytes (" << std::fixed << std::setprecision(2)
+                  << (static_cast<double>(override_bytes) / 1024.0 / 1024.0 / 1024.0) << " GB)";
+        return static_cast<uint64_t>(override_bytes);
+      }
+    } catch (const std::exception&) {
+      LOG(WARNING) << "Invalid value for MLC_GPU_MEMORY_OVERRIDE_BYTES: " << override_env
+                   << ". Falling back to auto-detection.";
+    }
+  }
   // Get single-card GPU size.
   tvm::ffi::Any rv;
   DeviceAPI::Get(device)->GetAttr(device, DeviceAttrKind::kTotalGlobalMemory, &rv);
