@@ -46,6 +46,7 @@ jobs:
         shell: bash -l {0}
         run: |
            set -e
+           ADRENO_OPENCL=${ADRENO_OPENCL_V5}
            source $VULKAN_SDK_PATH/setup-env.sh
            rm -rf build
            mkdir -p build && cd build
@@ -60,6 +61,7 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake
            echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           echo set\(USE_CLML "${ADRENO_OPENCL}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake .. -G Ninja && cmake --build . --parallel $(nproc) && cd ..
            mkdir -p nightly
@@ -68,6 +70,7 @@ jobs:
         shell: bash -l {0}
         run: |
            set -e
+           ADRENO_OPENCL=${ADRENO_OPENCL_V5}
            source $VULKAN_SDK_PATH/setup-env.sh
            rm -rf 3rdparty/tvm/build
            mkdir -p 3rdparty/tvm/build/;cd 3rdparty/tvm/build/;
@@ -76,6 +79,7 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake;
            echo set\(USE_LLVM $LLVM_CONFIG\) >> config.cmake;
            echo set\(USE_CUDA ON\) >> config.cmake;
+           echo set\(USE_CLML "${ADRENO_OPENCL}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake .. -G Ninja && cmake --build . --parallel $(nproc);
            cd ..
@@ -87,6 +91,7 @@ jobs:
         shell: bash -l {0}
         run: |
            set -e
+           ADRENO_OPENCL=${ADRENO_OPENCL_V5}
            source $VULKAN_SDK_PATH/setup-env.sh
            rm -rf build-arm64
            mkdir -p build-arm64 && cd build-arm64
@@ -101,6 +106,8 @@ jobs:
            echo set\(USE_OPENCL ON\) >> config.cmake
            echo set\(USE_OPENCL_ENABLE_HOST_PTR ON\) >> config.cmake
            echo set\(USE_FLASHINFER OFF\) >> config.cmake
+           echo set\(USE_CLML "${ADRENO_OPENCL}"\) >> config.cmake
+           echo set\(USE_CLML_GRAPH_EXECUTOR "${ADRENO_OPENCL}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL "${ADRENOACCL_SDK}"\) >> config.cmake
            echo set\(USE_ADRENO_ACCL_GRAPH_EXECUTOR "${ADRENOACCL_SDK}"\) >> config.cmake
            cmake -DANDROID_TOOLCHAIN_ROOT=${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64 \
@@ -111,7 +118,7 @@ jobs:
                  -DCMAKE_SYSROOT="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/" \
                  -DANDROID_PLATFORM=android-28 \
                  -DCMAKE_SYSTEM_VERSION=1 \
-                 -DCMAKE_FIND_ROOT_PATH="${ADRENO_OPENCL}:${ADRENOACCL_SDK}" \
+                 -DCMAKE_FIND_ROOT_PATH="${ADRENO_OPENCL_V5}:${ADRENOACCL_SDK}" \
                  -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
                  -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
                  -DCMAKE_CXX_COMPILER="${ANDROID_NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android28-clang++" \
