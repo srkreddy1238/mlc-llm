@@ -63,7 +63,6 @@ test-model Meta-Llama-3-8B-Instruct
 test-model Llama-3.2-3B-Instruct
 test-model Mistral-7B-Instruct-v0.2
 test-model gemma-2b-it
-test-model phi-2
 test-model Phi-3.5-mini-instruct
 test-model llava-1.5-7b-hf
 test-model DeepSeek-R1-Distill-Qwen-1.5B

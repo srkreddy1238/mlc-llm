@@ -84,11 +84,11 @@ def _check_engine_config(
             'Please set the "engine_config.mode" to None or set it to the same as the '
             'argument "mode".'
         )
-    if engine_config.kv_cache_page_size != 16:
+    if engine_config.kv_cache_page_size != 64:
         raise ValueError(
-            'KV cache only supports page size 16, while the "kv_cache_page_size" field in '
+            'KV cache only supports page size 64, while the "kv_cache_page_size" field in '
             f'argument "engine_config" is "{engine_config.kv_cache_page_size}". '
-            'Please set "engine_config.kv_cache_page_size" to 16.'
+            'Please set "engine_config.kv_cache_page_size" to 64.'
         )
 
 

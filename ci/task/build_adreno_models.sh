@@ -44,9 +44,6 @@ build_model Mistral-7B-Instruct-v0.2 q4f16_0 mistral_default "--sliding-window-s
 # Gemma-2G-it
 build_model gemma-2b-it q4f16_0 gemma_instruction  "--prefill-chunk-size 256 --context-window-size 4096"
 
-# Phi-2
-build_model phi-2 q4f16_0 phi-2 "--prefill-chunk-size 256 --context-window-size 4096"
-
 # Phi-3.5-mini-instruct
 build_model Phi-3.5-mini-instruct q4f16_0 phi-3 "--prefill-chunk-size 256 --context-window-size 4096"
 

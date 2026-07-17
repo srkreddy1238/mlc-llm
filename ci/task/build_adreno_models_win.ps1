@@ -228,7 +228,6 @@ $modelConfigs = @(
     @{ model = "Llama-3.2-3B-Instruct";          quantization = "q4f16_0"; template = "llama-3";           addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "Mistral-7B-Instruct-v0.2";       quantization = "q4f16_0"; template = "mistral_default";   addl_args = "--sliding-window-size 1024 --prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "gemma-2b-it";                    quantization = "q4f16_0"; template = "gemma_instruction"; addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
-    @{ model = "phi-2";                          quantization = "q4f16_0"; template = "phi-2";             addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "Phi-3.5-mini-instruct";          quantization = "q4f16_0"; template = "phi-3";             addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "llava-1.5-7b-hf";                quantization = "q4f16_0"; template = "llava";             addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },
     @{ model = "DeepSeek-R1-Distill-Qwen-1.5B";  quantization = "q4f16_0"; template = "deepseek_r1_qwen"; addl_args = "--prefill-chunk-size 256 --context-window-size 4096" },

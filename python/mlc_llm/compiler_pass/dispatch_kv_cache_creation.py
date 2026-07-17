@@ -25,7 +25,7 @@ def extract_creation_args(func: relax.Function) -> Dict[str, Any]:
     assert isinstance(call_args[0], relax.ExternFunc)
     assert call_args[0].global_symbol == "mlc.create_paged_kv_cache_generic"
     args = call_args[1:]
-    assert len(args) == 18
+    assert len(args) == 20
     assert isinstance(args[0], (relax.StringImm, relax.Tuple))
     # Check if attn_kind is a single value or a list with length of hidden layers
     if isinstance(args[0], relax.StringImm):
@@ -48,6 +48,8 @@ def extract_creation_args(func: relax.Function) -> Dict[str, Any]:
     assert isinstance(args[13], relax.StringImm)
     assert isinstance(args[16], (relax.Constant, relax.PrimValue))
     assert isinstance(args[17], relax.DataTypeImm)
+    assert isinstance(args[18], relax.PrimValue)
+    assert isinstance(args[19], relax.PrimValue)
 
     return {
         "attn_kind": attn_kind,
@@ -72,6 +74,8 @@ def extract_creation_args(func: relax.Function) -> Dict[str, Any]:
         "rotary_dim": args[15].value.value,
         "enable_disaggregation": bool(args[16].value.value),
         "dtype": args[17].value,
+        "is_sinks": bool(args[18].value),
+        "sliding_window_size": int(args[19].value.value),
     }
 
 

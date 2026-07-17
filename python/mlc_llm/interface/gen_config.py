@@ -349,4 +349,5 @@ CONV_TEMPLATES = {
     "olmo",
     "nemotron",
     "llm-jp",
+    "gpt_oss",
 }

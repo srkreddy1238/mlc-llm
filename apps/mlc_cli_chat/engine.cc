@@ -230,6 +230,7 @@ std::string Completions::create(std::vector<Message>& messages, int max_tokens,
   std::string prompt = messagesToString(messages);
   std::string jsonStart = R"({)";
   std::string message_str = R"("messages":[)" + prompt + R"(])";
+  std::string seed_str = R"(, "seed":)" + std::to_string(0);
   std::string max_token_str = R"(, "max_tokens":)" + std::to_string(max_tokens);
   std::string max_prompt_length_str =
       (max_prompt_length > 0) ? (R"(, "max_prompt_length":)" + std::to_string(max_prompt_length))
@@ -237,7 +238,7 @@ std::string Completions::create(std::vector<Message>& messages, int max_tokens,
   std::string jsonEnd = R"(})";
 
   std::string request_str =
-      jsonStart + message_str + max_token_str + max_prompt_length_str + jsonEnd;
+      jsonStart + message_str + seed_str + max_token_str + max_prompt_length_str + jsonEnd;
   std::string output_res =
       engine_state->handle_chat_completion(__mod, request_str, true, request_id, silent);
   return output_res;

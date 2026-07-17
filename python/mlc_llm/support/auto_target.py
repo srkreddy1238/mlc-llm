@@ -299,17 +299,23 @@ def _build_default():
             logger.warning("Unknown output suffix: %s. Assuming shared library.", output.suffix)
             system_lib = False
         mod = _add_system_lib_prefix(mod, args.system_lib_prefix, is_system_lib=system_lib)
-        relax.build(
+        ex = relax.build(
             mod,
             target=args.target,
             relax_pipeline=pipeline,
             system_lib=system_lib,
-        ).export_library(
+        )
+        ex.export_library(
             str(output),
             options=[
                 "--target=" + args.target.host.attrs["mtriple"],
             ],
         )
+
+        if args.debug_dump is not None:
+            source = ex.mod.imports[0].imports[0].inspect_source()
+            with open(args.debug_dump / "kernel.cl", "w", encoding="utf-8") as f:
+                f.write(source)
 
     return build
 
